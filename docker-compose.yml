@@ -11,7 +11,7 @@ services:
     ports:
       - "127.0.0.1:3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data_v2:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-fleet_root_dev_password}"]
       interval: 10s
@@ -43,7 +43,7 @@ services:
       - backend_m2:/home/spring/.m2
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:exec,mode=1777
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -77,8 +77,8 @@ services:
       - ALL
 
 volumes:
-  mysql_data:
-  backend_m2:
+  mysql_data_v2:
   backend_target:
+  backend_m2:
   frontend_node_modules:
   frontend_npm_cache:
