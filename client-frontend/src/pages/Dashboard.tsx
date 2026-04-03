@@ -11,9 +11,70 @@ import type { Driver, MaintenanceAlert, TelemetryData, Vehicle } from '../types'
 interface TelemetryFormState {
   latitude: string
   longitude: string
-  speed: number
-  fuelLevel: number
+  speed: string
+  fuelLevel: string
   timestamp: string
+}
+
+function formatTelemetryNumericInput(value: string, options?: { maxValue?: number }) {
+  if (!value) {
+    return ''
+  }
+
+  if (!/^\d*\.?\d*$/.test(value)) {
+    return value
+  }
+
+  const limitedValue = (() => {
+    if (!value.includes('.')) {
+      return value
+    }
+
+    const [integerPart, fractionalPart] = value.split('.', 2)
+    return `${integerPart}.${fractionalPart.slice(0, 2)}`
+  })()
+
+  if (limitedValue === '.') {
+    return '0.'
+  }
+
+  const normalizedValue = limitedValue.startsWith('.') ? `0${limitedValue}` : limitedValue
+  const parsedValue = Number(normalizedValue)
+
+  if (Number.isNaN(parsedValue)) {
+    return normalizedValue
+  }
+
+  if (typeof options?.maxValue === 'number' && parsedValue > options.maxValue) {
+    return String(options.maxValue)
+  }
+
+  if (parsedValue >= 10) {
+    if (normalizedValue.includes('.')) {
+      const [integerPart, fractionalPart] = normalizedValue.split('.', 2)
+      return `${String(Number(integerPart))}.${fractionalPart}`
+    }
+
+    return String(parsedValue)
+  }
+
+  if (normalizedValue.includes('.')) {
+    const [integerPart, fractionalPart] = normalizedValue.split('.', 2)
+    const paddedIntegerPart =
+      integerPart && integerPart !== '0' ? integerPart.padStart(2, '0') : integerPart
+
+    return `${paddedIntegerPart}.${fractionalPart}`
+  }
+
+  if (/^\d$/.test(normalizedValue) && normalizedValue !== '0') {
+    return normalizedValue.padStart(2, '0')
+  }
+
+  if (/^0\d+$/.test(normalizedValue)) {
+    return String(parsedValue).padStart(2, '0')
+  }
+
+  return normalizedValue
 }
 
 export function Dashboard() {
@@ -25,8 +86,8 @@ export function Dashboard() {
   const [telemetryForm, setTelemetryForm] = useState<TelemetryFormState>({
     latitude: '12.9716',
     longitude: '77.5946',
-    speed: 84,
-    fuelLevel: 18,
+    speed: '84',
+    fuelLevel: '18',
     timestamp: '',
   })
   const [isSubmittingTelemetry, setIsSubmittingTelemetry] = useState(false)
@@ -106,9 +167,9 @@ export function Dashboard() {
       [field]:
         field === 'timestamp' || field === 'latitude' || field === 'longitude'
           ? value
-          : value === ''
-            ? 0
-            : Number(value),
+          : field === 'fuelLevel'
+            ? formatTelemetryNumericInput(value, { maxValue: 100 })
+            : formatTelemetryNumericInput(value),
     }))
   }
 
@@ -123,6 +184,8 @@ export function Dashboard() {
 
     const parsedLatitude = Number(telemetryForm.latitude)
     const parsedLongitude = Number(telemetryForm.longitude)
+    const parsedSpeed = Number(telemetryForm.speed)
+    const parsedFuelLevel = Number(telemetryForm.fuelLevel)
 
     if (!telemetryForm.latitude.trim() || Number.isNaN(parsedLatitude)) {
       setTelemetryError('Latitude must be a valid number.')
@@ -132,6 +195,18 @@ export function Dashboard() {
 
     if (!telemetryForm.longitude.trim() || Number.isNaN(parsedLongitude)) {
       setTelemetryError('Longitude must be a valid number.')
+      setTelemetryMessage('')
+      return
+    }
+
+    if (!telemetryForm.speed.trim() || Number.isNaN(parsedSpeed) || parsedSpeed < 0) {
+      setTelemetryError('Speed must be a valid non-negative number.')
+      setTelemetryMessage('')
+      return
+    }
+
+    if (!telemetryForm.fuelLevel.trim() || Number.isNaN(parsedFuelLevel) || parsedFuelLevel < 0 || parsedFuelLevel > 100) {
+      setTelemetryError('Fuel level must be a valid percentage between 0 and 100.')
       setTelemetryMessage('')
       return
     }
@@ -146,6 +221,8 @@ export function Dashboard() {
         ...telemetryForm,
         latitude: parsedLatitude,
         longitude: parsedLongitude,
+        speed: parsedSpeed,
+        fuelLevel: parsedFuelLevel,
         timestamp: telemetryForm.timestamp || undefined,
       })
 
@@ -264,6 +341,7 @@ export function Dashboard() {
               <input
                 type="number"
                 min="0"
+                step="0.01"
                 value={telemetryForm.speed}
                 onChange={(event) => handleTelemetryFieldChange('speed', event.target.value)}
               />
@@ -274,6 +352,7 @@ export function Dashboard() {
                 type="number"
                 min="0"
                 max="100"
+                step="0.01"
                 value={telemetryForm.fuelLevel}
                 onChange={(event) => handleTelemetryFieldChange('fuelLevel', event.target.value)}
               />
@@ -320,8 +399,8 @@ export function Dashboard() {
                 setTelemetryForm({
                   latitude: '12.9716',
                   longitude: '77.5946',
-                  speed: 84,
-                  fuelLevel: 18,
+                  speed: '84',
+                  fuelLevel: '18',
                   timestamp: '',
                 })
               }
