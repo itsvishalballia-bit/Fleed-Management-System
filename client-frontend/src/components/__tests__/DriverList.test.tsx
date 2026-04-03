@@ -95,4 +95,27 @@ describe('DriverList', () => {
 
     confirmSpy.mockRestore()
   })
+
+  it('formats hours driven today using the same route-style numeric behavior', async () => {
+    render(
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+        initialEntries={['/drivers']}
+      >
+        <DriverList />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /add driver/i }))
+
+    const hoursDrivenInput = screen.getByLabelText(/hours driven today/i)
+
+    expect(hoursDrivenInput).toHaveDisplayValue('0')
+
+    fireEvent.change(hoursDrivenInput, { target: { value: '09.999' } })
+    expect(hoursDrivenInput).toHaveDisplayValue('09.99')
+
+    fireEvent.change(hoursDrivenInput, { target: { value: '010' } })
+    expect(hoursDrivenInput).toHaveDisplayValue('10')
+  })
 })

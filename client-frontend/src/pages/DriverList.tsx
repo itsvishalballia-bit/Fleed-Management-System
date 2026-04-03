@@ -20,6 +20,63 @@ const initialDriverForm: CreateDriverInput = {
   hoursDrivenToday: 0,
 }
 
+function formatDriverHoursInput(value: string) {
+  if (!value) {
+    return ''
+  }
+
+  if (!/^\d*\.?\d*$/.test(value)) {
+    return value
+  }
+
+  const limitedValue = (() => {
+    if (!value.includes('.')) {
+      return value
+    }
+
+    const [integerPart, fractionalPart] = value.split('.', 2)
+    return `${integerPart}.${fractionalPart.slice(0, 2)}`
+  })()
+
+  if (limitedValue === '.') {
+    return '0.'
+  }
+
+  const normalizedValue = limitedValue.startsWith('.') ? `0${limitedValue}` : limitedValue
+  const parsedValue = Number(normalizedValue)
+
+  if (Number.isNaN(parsedValue)) {
+    return normalizedValue
+  }
+
+  if (parsedValue >= 10) {
+    if (normalizedValue.includes('.')) {
+      const [integerPart, fractionalPart] = normalizedValue.split('.', 2)
+      return `${String(Number(integerPart))}.${fractionalPart}`
+    }
+
+    return String(parsedValue)
+  }
+
+  if (normalizedValue.includes('.')) {
+    const [integerPart, fractionalPart] = normalizedValue.split('.', 2)
+    const paddedIntegerPart =
+      integerPart && integerPart !== '0' ? integerPart.padStart(2, '0') : integerPart
+
+    return `${paddedIntegerPart}.${fractionalPart}`
+  }
+
+  if (/^\d$/.test(normalizedValue) && normalizedValue !== '0') {
+    return normalizedValue.padStart(2, '0')
+  }
+
+  if (/^0\d+$/.test(normalizedValue)) {
+    return String(parsedValue).padStart(2, '0')
+  }
+
+  return normalizedValue
+}
+
 export function DriverList() {
   const [searchParams] = useSearchParams()
   const [drivers, setDrivers] = useState<Driver[]>([])
@@ -28,6 +85,7 @@ export function DriverList() {
   const [showDriverForm, setShowDriverForm] = useState(false)
   const [editingDriverId, setEditingDriverId] = useState<string | null>(null)
   const [deletingDriverId, setDeletingDriverId] = useState<string | null>(null)
+  const [hoursDrivenInput, setHoursDrivenInput] = useState('0')
   const [error, setError] = useState('')
   const [assignment, setAssignment] = useState<AssignShiftInput>({
     driverId: '',
@@ -71,12 +129,23 @@ export function DriverList() {
     event.preventDefault()
     setError('')
 
+    const parsedHoursDriven = Number(hoursDrivenInput)
+    if (!hoursDrivenInput.trim() || Number.isNaN(parsedHoursDriven) || parsedHoursDriven < 0) {
+      setError('Hours driven today must be a valid non-negative number.')
+      return
+    }
+
+    const nextDriverForm = {
+      ...driverForm,
+      hoursDrivenToday: parsedHoursDriven,
+    }
+
     try {
       if (editingDriverId) {
-        const updated = await updateDriver(editingDriverId, driverForm)
+        const updated = await updateDriver(editingDriverId, nextDriverForm)
         setDrivers((current) => current.map((driver) => (driver.id === updated.id ? updated : driver)))
       } else {
-        const created = await createDriver(driverForm)
+        const created = await createDriver(nextDriverForm)
         setDrivers((current) => [...current, created])
       }
 
@@ -111,6 +180,7 @@ export function DriverList() {
       assignedVehicleId: driver.assignedVehicleId ?? '',
       hoursDrivenToday: driver.hoursDrivenToday,
     })
+    setHoursDrivenInput(formatDriverHoursInput(String(driver.hoursDrivenToday)))
     setEditingDriverId(driver.id)
     setShowDriverForm(true)
     setShowShiftForm(false)
@@ -119,6 +189,7 @@ export function DriverList() {
 
   function resetDriverForm() {
     setDriverForm(initialDriverForm)
+    setHoursDrivenInput(formatDriverHoursInput(String(initialDriverForm.hoursDrivenToday)))
     setEditingDriverId(null)
     setShowDriverForm(false)
     setError('')
@@ -195,7 +266,14 @@ export function DriverList() {
             </label>
             <label className="input-group">
               <span>Hours driven today</span>
-              <input min="0" onChange={(event) => setDriverForm({ ...driverForm, hoursDrivenToday: Number(event.target.value) })} required type="number" value={driverForm.hoursDrivenToday} />
+              <input
+                min="0"
+                onChange={(event) => setHoursDrivenInput(formatDriverHoursInput(event.target.value))}
+                required
+                step="0.01"
+                type="number"
+                value={hoursDrivenInput}
+              />
             </label>
           </div>
           {error ? <div className="form-error">{error}</div> : null}

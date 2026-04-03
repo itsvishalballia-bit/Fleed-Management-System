@@ -81,4 +81,45 @@ describe('RoutePlanner', () => {
 
     confirmSpy.mockRestore()
   })
+
+  it('keeps a leading zero for single digits and removes it at ten', async () => {
+    render(
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+        initialEntries={['/routes']}
+      >
+        <RoutePlanner />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /add route/i }))
+
+    const distanceInput = screen.getByLabelText(/distance \(km\)/i)
+
+    expect(distanceInput).toHaveDisplayValue('0')
+
+    fireEvent.change(distanceInput, { target: { value: '09' } })
+    expect(distanceInput).toHaveDisplayValue('09')
+
+    fireEvent.change(distanceInput, { target: { value: '010' } })
+    expect(distanceInput).toHaveDisplayValue('10')
+  })
+
+  it('limits the distance input to two decimal places', async () => {
+    render(
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+        initialEntries={['/routes']}
+      >
+        <RoutePlanner />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /add route/i }))
+
+    const distanceInput = screen.getByLabelText(/distance \(km\)/i)
+
+    fireEvent.change(distanceInput, { target: { value: '09.999' } })
+    expect(distanceInput).toHaveDisplayValue('09.99')
+  })
 })

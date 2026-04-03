@@ -15,12 +15,75 @@ const initialForm: CreateVehicleInput = {
   driverId: '',
 }
 
+function formatVehicleNumericInput(value: string, options?: { maxValue?: number }) {
+  if (!value) {
+    return ''
+  }
+
+  if (!/^\d*\.?\d*$/.test(value)) {
+    return value
+  }
+
+  const limitedValue = (() => {
+    if (!value.includes('.')) {
+      return value
+    }
+
+    const [integerPart, fractionalPart] = value.split('.', 2)
+    return `${integerPart}.${fractionalPart.slice(0, 2)}`
+  })()
+
+  if (limitedValue === '.') {
+    return '0.'
+  }
+
+  const normalizedValue = limitedValue.startsWith('.') ? `0${limitedValue}` : limitedValue
+  const parsedValue = Number(normalizedValue)
+
+  if (Number.isNaN(parsedValue)) {
+    return normalizedValue
+  }
+
+  if (typeof options?.maxValue === 'number' && parsedValue > options.maxValue) {
+    return String(options.maxValue)
+  }
+
+  if (parsedValue >= 10) {
+    if (normalizedValue.includes('.')) {
+      const [integerPart, fractionalPart] = normalizedValue.split('.', 2)
+      return `${String(Number(integerPart))}.${fractionalPart}`
+    }
+
+    return String(parsedValue)
+  }
+
+  if (normalizedValue.includes('.')) {
+    const [integerPart, fractionalPart] = normalizedValue.split('.', 2)
+    const paddedIntegerPart =
+      integerPart && integerPart !== '0' ? integerPart.padStart(2, '0') : integerPart
+
+    return `${paddedIntegerPart}.${fractionalPart}`
+  }
+
+  if (/^\d$/.test(normalizedValue) && normalizedValue !== '0') {
+    return normalizedValue.padStart(2, '0')
+  }
+
+  if (/^0\d+$/.test(normalizedValue)) {
+    return String(parsedValue).padStart(2, '0')
+  }
+
+  return normalizedValue
+}
+
 export function VehicleList() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null)
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null)
+  const [fuelLevelInput, setFuelLevelInput] = useState('50')
+  const [mileageInput, setMileageInput] = useState('0')
   const [form, setForm] = useState<CreateVehicleInput>(initialForm)
   const [error, setError] = useState('')
   const query = searchParams.get('q')?.trim().toLowerCase() ?? ''
@@ -33,14 +96,32 @@ export function VehicleList() {
     event.preventDefault()
     setError('')
 
+    const parsedFuelLevel = Number(fuelLevelInput)
+    if (!fuelLevelInput.trim() || Number.isNaN(parsedFuelLevel) || parsedFuelLevel < 0 || parsedFuelLevel > 100) {
+      setError('Fuel level must be a valid percentage between 0 and 100.')
+      return
+    }
+
+    const parsedMileage = Number(mileageInput)
+    if (!mileageInput.trim() || Number.isNaN(parsedMileage) || parsedMileage < 0) {
+      setError('Mileage must be a valid non-negative number.')
+      return
+    }
+
+    const nextForm = {
+      ...form,
+      fuelLevel: parsedFuelLevel,
+      mileage: parsedMileage,
+    }
+
     try {
       if (editingVehicleId) {
-        const updatedVehicle = await updateVehicle(editingVehicleId, form)
+        const updatedVehicle = await updateVehicle(editingVehicleId, nextForm)
         setVehicles((current) =>
           current.map((vehicle) => (vehicle.id === updatedVehicle.id ? updatedVehicle : vehicle)),
         )
       } else {
-        const createdVehicle = await createVehicle(form)
+        const createdVehicle = await createVehicle(nextForm)
         setVehicles((current) => [...current, createdVehicle])
       }
 
@@ -77,6 +158,8 @@ export function VehicleList() {
       mileage: vehicle.mileage,
       driverId: vehicle.driverId,
     })
+    setFuelLevelInput(formatVehicleNumericInput(String(vehicle.fuelLevel), { maxValue: 100 }))
+    setMileageInput(formatVehicleNumericInput(String(vehicle.mileage)))
     setEditingVehicleId(vehicle.id)
     setShowForm(true)
     setError('')
@@ -84,6 +167,8 @@ export function VehicleList() {
 
   function resetForm() {
     setForm(initialForm)
+    setFuelLevelInput(formatVehicleNumericInput(String(initialForm.fuelLevel), { maxValue: 100 }))
+    setMileageInput(formatVehicleNumericInput(String(initialForm.mileage)))
     setEditingVehicleId(null)
     setShowForm(false)
     setError('')
@@ -157,12 +242,29 @@ export function VehicleList() {
               <input onChange={(event) => setForm({ ...form, location: event.target.value })} required type="text" value={form.location} />
             </label>
             <label className="input-group">
-              <span>Fuel level</span>
-              <input max="100" min="0" onChange={(event) => setForm({ ...form, fuelLevel: Number(event.target.value) })} required type="number" value={form.fuelLevel} />
+              <span>Fuel level (%)</span>
+              <input
+                max="100"
+                min="0"
+                onChange={(event) =>
+                  setFuelLevelInput(formatVehicleNumericInput(event.target.value, { maxValue: 100 }))
+                }
+                required
+                step="0.01"
+                type="number"
+                value={fuelLevelInput}
+              />
             </label>
             <label className="input-group">
               <span>Mileage</span>
-              <input min="0" onChange={(event) => setForm({ ...form, mileage: Number(event.target.value) })} required type="number" value={form.mileage} />
+              <input
+                min="0"
+                onChange={(event) => setMileageInput(formatVehicleNumericInput(event.target.value))}
+                required
+                step="0.01"
+                type="number"
+                value={mileageInput}
+              />
             </label>
             <label className="input-group">
               <span>Driver ID</span>

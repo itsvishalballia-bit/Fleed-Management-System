@@ -82,4 +82,38 @@ describe('VehicleList', () => {
 
     confirmSpy.mockRestore()
   })
+
+  it('formats fuel level as a percentage input and applies route-style number behavior', async () => {
+    render(
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+        initialEntries={['/vehicles']}
+      >
+        <VehicleList />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /add vehicle/i }))
+
+    const fuelLevelInput = screen.getByLabelText(/fuel level \(%\)/i)
+    const mileageInput = screen.getByLabelText(/mileage/i)
+
+    expect(fuelLevelInput).toHaveDisplayValue('50')
+    expect(mileageInput).toHaveDisplayValue('0')
+
+    fireEvent.change(fuelLevelInput, { target: { value: '09.999' } })
+    expect(fuelLevelInput).toHaveDisplayValue('09.99')
+
+    fireEvent.change(fuelLevelInput, { target: { value: '010' } })
+    expect(fuelLevelInput).toHaveDisplayValue('10')
+
+    fireEvent.change(fuelLevelInput, { target: { value: '150' } })
+    expect(fuelLevelInput).toHaveDisplayValue('100')
+
+    fireEvent.change(mileageInput, { target: { value: '09.999' } })
+    expect(mileageInput).toHaveDisplayValue('09.99')
+
+    fireEvent.change(mileageInput, { target: { value: '010' } })
+    expect(mileageInput).toHaveDisplayValue('10')
+  })
 })

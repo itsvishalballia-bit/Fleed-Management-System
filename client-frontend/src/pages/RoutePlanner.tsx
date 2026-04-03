@@ -31,6 +31,63 @@ const initialForm: CreateRoutePlanInput = {
   stops: [],
 }
 
+function formatDistanceInput(value: string) {
+  if (!value) {
+    return ''
+  }
+
+  if (!/^\d*\.?\d*$/.test(value)) {
+    return value
+  }
+
+  const limitedValue = (() => {
+    if (!value.includes('.')) {
+      return value
+    }
+
+    const [integerPart, fractionalPart] = value.split('.', 2)
+    return `${integerPart}.${fractionalPart.slice(0, 2)}`
+  })()
+
+  if (limitedValue === '.') {
+    return '0.'
+  }
+
+  const normalizedValue = limitedValue.startsWith('.') ? `0${limitedValue}` : limitedValue
+  const parsedValue = Number(normalizedValue)
+
+  if (Number.isNaN(parsedValue)) {
+    return normalizedValue
+  }
+
+  if (parsedValue >= 10) {
+    if (normalizedValue.includes('.')) {
+      const [integerPart, fractionalPart] = normalizedValue.split('.', 2)
+      return `${String(Number(integerPart))}.${fractionalPart}`
+    }
+
+    return String(parsedValue)
+  }
+
+  if (normalizedValue.includes('.')) {
+    const [integerPart, fractionalPart] = normalizedValue.split('.', 2)
+    const paddedIntegerPart =
+      integerPart && integerPart !== '0' ? integerPart.padStart(2, '0') : integerPart
+
+    return `${paddedIntegerPart}.${fractionalPart}`
+  }
+
+  if (/^\d$/.test(normalizedValue) && normalizedValue !== '0') {
+    return normalizedValue.padStart(2, '0')
+  }
+
+  if (/^0\d+$/.test(normalizedValue)) {
+    return String(parsedValue).padStart(2, '0')
+  }
+
+  return normalizedValue
+}
+
 export function RoutePlanner() {
   const [searchParams] = useSearchParams()
   const [routes, setRoutes] = useState<RoutePlan[]>([])
@@ -39,6 +96,7 @@ export function RoutePlanner() {
   const [showForm, setShowForm] = useState(false)
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null)
   const [deletingRouteId, setDeletingRouteId] = useState<string | null>(null)
+  const [distanceInput, setDistanceInput] = useState('0')
   const [stopsInput, setStopsInput] = useState('')
   const [error, setError] = useState('')
   const [form, setForm] = useState<CreateRoutePlanInput>(initialForm)
@@ -96,8 +154,15 @@ export function RoutePlanner() {
     event.preventDefault()
     setError('')
 
+    const parsedDistance = Number(distanceInput)
+    if (!distanceInput.trim() || Number.isNaN(parsedDistance) || parsedDistance < 0) {
+      setError('Distance must be a valid non-negative number.')
+      return
+    }
+
     const nextForm = {
       ...form,
+      distanceKm: parsedDistance,
       stops: stopsInput
         .split(',')
         .map((stop) => stop.trim())
@@ -152,6 +217,7 @@ export function RoutePlanner() {
       estimatedDuration: route.estimatedDuration,
       stops: route.stops,
     })
+    setDistanceInput(formatDistanceInput(String(route.distanceKm)))
     setStopsInput(route.stops.join(', '))
     setEditingRouteId(route.id)
     setShowForm(true)
@@ -161,6 +227,7 @@ export function RoutePlanner() {
 
   function resetForm() {
     setForm(initialForm)
+    setDistanceInput('0')
     setStopsInput('')
     setEditingRouteId(null)
     setShowForm(false)
@@ -218,7 +285,14 @@ export function RoutePlanner() {
             </label>
             <label className="input-group">
               <span>Distance (km)</span>
-              <input min="0" onChange={(event) => setForm({ ...form, distanceKm: Number(event.target.value) })} required type="number" value={form.distanceKm} />
+              <input
+                min="0"
+                onChange={(event) => setDistanceInput(formatDistanceInput(event.target.value))}
+                required
+                step="0.01"
+                type="number"
+                value={distanceInput}
+              />
             </label>
             <label className="input-group">
               <span>Estimated duration</span>
