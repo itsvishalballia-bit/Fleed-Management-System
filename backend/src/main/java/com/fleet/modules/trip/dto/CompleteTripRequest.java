@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public record CompleteTripRequest(
     @NotNull LocalDateTime actualEndTime,
     @PositiveOrZero int actualDistance,
+    @PositiveOrZero Double fuelUsed,
     String actualDuration,
     String remarks
 ) {}

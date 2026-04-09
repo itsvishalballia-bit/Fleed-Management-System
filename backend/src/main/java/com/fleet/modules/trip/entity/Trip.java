@@ -47,9 +47,12 @@ public class Trip {
     private LocalDateTime plannedEndTime;
     private LocalDateTime actualStartTime;
     private LocalDateTime actualEndTime;
+    private LocalDateTime completionProcessedAt;
 
     private int estimatedDistance;
     private int actualDistance;
+    private Integer delayMinutes;
+    private Double fuelUsed;
     private String estimatedDuration;
     private String actualDuration;
 
@@ -231,6 +234,14 @@ public class Trip {
         this.actualEndTime = actualEndTime;
     }
 
+    public LocalDateTime getCompletionProcessedAt() {
+        return completionProcessedAt;
+    }
+
+    public void setCompletionProcessedAt(LocalDateTime completionProcessedAt) {
+        this.completionProcessedAt = completionProcessedAt;
+    }
+
     public int getEstimatedDistance() {
         return estimatedDistance;
     }
@@ -245,6 +256,22 @@ public class Trip {
 
     public void setActualDistance(int actualDistance) {
         this.actualDistance = actualDistance;
+    }
+
+    public Integer getDelayMinutes() {
+        return delayMinutes;
+    }
+
+    public void setDelayMinutes(Integer delayMinutes) {
+        this.delayMinutes = delayMinutes;
+    }
+
+    public Double getFuelUsed() {
+        return fuelUsed;
+    }
+
+    public void setFuelUsed(Double fuelUsed) {
+        this.fuelUsed = fuelUsed;
     }
 
     public String getEstimatedDuration() {

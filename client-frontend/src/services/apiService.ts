@@ -11,6 +11,7 @@ import type {
   CreateTripInput,
   CreateRoutePlanInput,
   CreateVehicleInput,
+  DriverAnalytics,
   Driver,
   DashboardActionQueueItem,
   DashboardAnalytics,
@@ -18,8 +19,11 @@ import type {
   LoginCredentials,
   MaintenanceAlert,
   MaintenanceSchedule,
+  Notification,
   Trip,
+  TripAnalytics,
   TripOptimizationResult,
+  TripStatus,
   TripValidationResult,
   RoutePlan,
   TripTelemetryPoint,
@@ -30,6 +34,7 @@ import type {
   UpdateVehicleInput,
   UserProfile,
   Vehicle,
+  VehicleAnalytics,
 } from '../types'
 
 const DEFAULT_API_BASE_URL = 'http://localhost:8080/api'
@@ -202,6 +207,69 @@ let alerts: Alert[] = [
   },
 ]
 
+let notifications: Notification[] = [
+  {
+    id: 'NT-1',
+    category: 'CRITICAL_ALERT',
+    severity: 'CRITICAL',
+    title: 'Critical alert: Brake pad replacement',
+    message: 'Brake wear threshold exceeded during latest inspection.',
+    entityType: 'ALERT',
+    entityId: 'AL-1',
+    tripId: null,
+    vehicleId: 'VH-103',
+    metadataJson: '{"reasonCode":"BRAKE_INSPECTION"}',
+    createdAt: '2026-04-09T07:00:00',
+    readAt: null,
+    read: false,
+  },
+  {
+    id: 'NT-2',
+    category: 'TRIP_DISPATCH',
+    severity: 'MEDIUM',
+    title: 'Trip dispatched: TRIP-1001',
+    message: 'Trip TRIP-1001 has been dispatched and is ready for live tracking.',
+    entityType: 'TRIP',
+    entityId: 'TRIP-1001',
+    tripId: 'TRIP-1001',
+    vehicleId: 'VH-101',
+    metadataJson: null,
+    createdAt: '2026-04-09T08:25:00',
+    readAt: null,
+    read: false,
+  },
+  {
+    id: 'NT-3',
+    category: 'MAINTENANCE_REMINDER',
+    severity: 'MEDIUM',
+    title: 'Maintenance reminder: Brake inspection bay visit',
+    message: 'Blocks dispatch until brake system inspection is signed off.',
+    entityType: 'MAINTENANCE_SCHEDULE',
+    entityId: 'MS-1',
+    tripId: null,
+    vehicleId: 'VH-103',
+    metadataJson: '{"reasonCode":"BRAKE_INSPECTION","blockDispatch":true}',
+    createdAt: '2026-04-09T06:00:00',
+    readAt: '2026-04-09T06:40:00',
+    read: true,
+  },
+  {
+    id: 'NT-4',
+    category: 'COMPLIANCE_REMINDER',
+    severity: 'HIGH',
+    title: 'Compliance reminder: TRIP-1002',
+    message: 'Trip TRIP-1002 is blocked by duty-hour and license checks.',
+    entityType: 'TRIP',
+    entityId: 'TRIP-1002',
+    tripId: 'TRIP-1002',
+    vehicleId: 'VH-103',
+    metadataJson: '{"blockingReasons":["Driver is off duty and cannot be dispatched.","Vehicle is in maintenance and cannot be dispatched."]}',
+    createdAt: '2026-04-09T08:15:00',
+    readAt: null,
+    read: false,
+  },
+]
+
 let maintenanceSchedules: MaintenanceSchedule[] = [
   {
     id: 'MS-1',
@@ -370,6 +438,10 @@ function nextMaintenanceAlertId() {
 
 function cloneAlert(alert: Alert): Alert {
   return { ...alert }
+}
+
+function cloneNotification(notification: Notification): Notification {
+  return { ...notification }
 }
 
 function cloneMaintenanceSchedule(schedule: MaintenanceSchedule): MaintenanceSchedule {
@@ -591,6 +663,393 @@ function parseDateTime(value?: string | null) {
 
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+type AnalyticsFilters = {
+  startDate?: string
+  endDate?: string
+  status?: TripStatus
+}
+
+function normalizeApiDateTime(value: string) {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) ? `${value}:00` : value
+}
+
+function buildAnalyticsQuery(filters: AnalyticsFilters) {
+  const params = new URLSearchParams()
+
+  if (filters.startDate) {
+    params.set('startDate', normalizeApiDateTime(filters.startDate))
+  }
+
+  if (filters.endDate) {
+    params.set('endDate', normalizeApiDateTime(filters.endDate))
+  }
+
+  if (filters.status) {
+    params.set('status', filters.status)
+  }
+
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
+function isWithinDateRange(
+  value: string | Date | null | undefined,
+  startDate?: string,
+  endDate?: string,
+) {
+  const timestamp = value instanceof Date ? value : parseDateTime(value)
+  if (!timestamp) {
+    return false
+  }
+
+  const start = parseDateTime(startDate)
+  const end = parseDateTime(endDate)
+
+  if (start && timestamp < start) {
+    return false
+  }
+
+  if (end && timestamp > end) {
+    return false
+  }
+
+  return true
+}
+
+function tripReferenceTime(trip: Trip) {
+  return parseDateTime(trip.actualEndTime) ?? parseDateTime(trip.actualStartTime) ?? parseDateTime(trip.plannedStartTime)
+}
+
+function filterTripsForAnalytics(filters: AnalyticsFilters) {
+  return trips
+    .filter((trip) => !filters.status || trip.status === filters.status)
+    .filter((trip) => {
+      if (!filters.startDate && !filters.endDate) {
+        return true
+      }
+
+      const reference = tripReferenceTime(trip)
+      return reference ? isWithinDateRange(reference, filters.startDate, filters.endDate) : false
+    })
+}
+
+function roundOneDecimal(value: number) {
+  return Math.round(value * 10) / 10
+}
+
+function formatPercent(value: number) {
+  return `${roundOneDecimal(value).toFixed(1)}%`
+}
+
+function formatMinutes(value: number) {
+  return `${roundOneDecimal(value).toFixed(1)} min`
+}
+
+function calculateDelayMinutes(trip: Trip, now = new Date()) {
+  const plannedEnd = parseDateTime(trip.plannedEndTime)
+  if (!plannedEnd) {
+    return 0
+  }
+
+  const reference = parseDateTime(trip.actualEndTime) ?? now
+  return Math.max(0, Math.round((reference.getTime() - plannedEnd.getTime()) / 60000))
+}
+
+function buildTripTrendBuckets(filteredTrips: Trip[]) {
+  const delayedTrips = filteredTrips.filter((trip) => isTripDelayed(trip))
+  const buckets: Record<string, number> = {
+    '0-15 min': 0,
+    '16-30 min': 0,
+    '31-60 min': 0,
+    '60+ min': 0,
+  }
+
+  delayedTrips.forEach((trip) => {
+    const minutes = calculateDelayMinutes(trip)
+    const bucket = minutes <= 15 ? '0-15 min' : minutes <= 30 ? '16-30 min' : minutes <= 60 ? '31-60 min' : '60+ min'
+    buckets[bucket] += 1
+  })
+
+  return [
+    { label: '0-15 min', count: buckets['0-15 min'], note: 'Short delays' },
+    { label: '16-30 min', count: buckets['16-30 min'], note: 'Moderate delays' },
+    { label: '31-60 min', count: buckets['31-60 min'], note: 'Material delays' },
+    { label: '60+ min', count: buckets['60+ min'], note: 'Severe delays' },
+  ]
+}
+
+function buildCategoryTrends(counts: Record<string, number>, noteSuffix: string) {
+  return Object.entries(counts)
+    .sort((left, right) => right[1] - left[1])
+    .map(([label, count]) => ({
+      label,
+      count,
+      note: `Counted from persisted ${noteSuffix}`,
+    }))
+}
+
+function buildTripAnalyticsFallback(filters: AnalyticsFilters): TripAnalytics {
+  const now = new Date()
+  const filteredTrips = filterTripsForAnalytics(filters)
+  const completedTrips = filteredTrips.filter((trip) => trip.status === 'COMPLETED')
+  const cancelledTrips = filteredTrips.filter((trip) => trip.status === 'CANCELLED')
+  const delayedTrips = filteredTrips.filter((trip) => isTripDelayed(trip, now))
+  const onTimeCompleted = completedTrips.filter((trip) => {
+    const actualEnd = parseDateTime(trip.actualEndTime)
+    const plannedEnd = parseDateTime(trip.plannedEndTime)
+    return actualEnd && plannedEnd ? actualEnd <= plannedEnd : false
+  }).length
+  const terminalTrips = completedTrips.length + cancelledTrips.length
+  const onTimeDeliveryRate = completedTrips.length ? roundOneDecimal((onTimeCompleted * 100) / completedTrips.length) : 0
+  const tripSuccessRate = terminalTrips ? roundOneDecimal((completedTrips.length * 100) / terminalTrips) : 0
+  const averageDelayMinutes =
+    delayedTrips.length > 0
+      ? roundOneDecimal(delayedTrips.reduce((sum, trip) => sum + calculateDelayMinutes(trip, now), 0) / delayedTrips.length)
+      : 0
+
+  const alertCounts = alerts
+    .filter((alert) => !filters.startDate && !filters.endDate ? true : isWithinDateRange(alert.createdAt, filters.startDate, filters.endDate))
+    .reduce<Record<string, number>>((counts, alert) => {
+      counts[alert.category] = (counts[alert.category] ?? 0) + 1
+      return counts
+    }, {})
+
+  return {
+    generatedAt: now.toISOString(),
+    startDate: filters.startDate ?? null,
+    endDate: filters.endDate ?? null,
+    statusFilter: filters.status ?? 'ALL',
+    kpis: [
+      {
+        key: 'completed-trips',
+        label: 'Completed trips',
+        value: String(completedTrips.length),
+        note: 'Trips finished in the selected range',
+        tone: 'mint',
+      },
+      {
+        key: 'cancelled-trips',
+        label: 'Cancelled trips',
+        value: String(cancelledTrips.length),
+        note: 'Trips closed before delivery',
+        tone: 'rose',
+      },
+      {
+        key: 'on-time-rate',
+        label: 'On-time delivery',
+        value: formatPercent(onTimeDeliveryRate),
+        note: 'Completed trips finished on or before plan',
+        tone: 'blue',
+      },
+      {
+        key: 'success-rate',
+        label: 'Trip success',
+        value: formatPercent(tripSuccessRate),
+        note: 'Completed versus terminal trips',
+        tone: 'teal',
+      },
+      {
+        key: 'avg-delay',
+        label: 'Average delay',
+        value: formatMinutes(averageDelayMinutes),
+        note: 'Delay among late trips only',
+        tone: 'amber',
+      },
+      {
+        key: 'fuel-efficiency',
+        label: 'Fuel efficiency',
+        value: 'N/A',
+        note: 'Derived from telemetry fuel delta',
+        tone: 'violet',
+      },
+    ],
+    onTimeDeliveryRate,
+    tripSuccessRate,
+    averageDelayMinutes,
+    fuelEfficiencyKmPerFuelUnit: 0,
+    completedTrips: completedTrips.length,
+    cancelledTrips: cancelledTrips.length,
+    delayedTrips: delayedTrips.length,
+    delayTrends: buildTripTrendBuckets(filteredTrips),
+    alertFrequencyByCategory: buildCategoryTrends(alertCounts, 'alerts'),
+    recentTrips: filteredTrips
+      .slice()
+      .sort((left, right) => {
+        const leftTime = tripReferenceTime(left)?.getTime() ?? 0
+        const rightTime = tripReferenceTime(right)?.getTime() ?? 0
+        return rightTime - leftTime
+      })
+      .slice(0, 12)
+      .map((trip) => ({
+        tripId: trip.tripId,
+        routeId: trip.routeId,
+        vehicleId: trip.assignedVehicleId,
+        driverId: trip.assignedDriverId,
+        status: trip.status,
+        plannedEndTime: trip.plannedEndTime ?? null,
+        actualEndTime: trip.actualEndTime ?? null,
+        delayMinutes: calculateDelayMinutes(trip, now),
+        actualDistance: trip.actualDistance,
+        fuelUsed: null,
+        completionProcessedAt: trip.actualEndTime ?? null,
+      })),
+  }
+}
+
+function buildVehicleAnalyticsFallback(filters: AnalyticsFilters): VehicleAnalytics {
+  const filteredTrips = filterTripsForAnalytics(filters)
+  const blockingSchedules = maintenanceSchedules.filter(
+    (schedule) => schedule.blockDispatch && ['PLANNED', 'IN_PROGRESS'].includes(schedule.status),
+  )
+  const blockingByVehicle = new Map(blockingSchedules.map((schedule) => [schedule.vehicleId, schedule]))
+  const rows = vehicles
+    .map((vehicle) => {
+      const vehicleTrips = filteredTrips.filter((trip) => trip.assignedVehicleId === vehicle.id)
+      const completedTrips = vehicleTrips.filter((trip) => trip.status === 'COMPLETED').length
+      const activeTrips = vehicleTrips.filter((trip) => ['DISPATCHED', 'IN_PROGRESS'].includes(trip.status)).length
+      const utilizationPercent = vehicleTrips.length ? roundOneDecimal(((completedTrips + activeTrips) * 100) / vehicleTrips.length) : 0
+      const blockingSchedule = blockingByVehicle.get(vehicle.id)
+
+      return {
+        vehicleId: vehicle.id,
+        name: vehicle.name,
+        status: vehicle.status,
+        location: vehicle.location,
+        mileage: vehicle.mileage,
+        maintenanceDue: Boolean(blockingSchedule) || vehicle.status === 'Maintenance',
+        totalTrips: vehicleTrips.length,
+        completedTrips,
+        activeTrips,
+        utilizationPercent,
+        note: blockingSchedule ? `Blocked by ${blockingSchedule.reasonCode ?? 'maintenance'}` : 'Fleet-ready',
+      }
+    })
+    .sort((left, right) => right.utilizationPercent - left.utilizationPercent)
+
+  const averageUtilizationPercent = rows.length
+    ? roundOneDecimal(rows.reduce((sum, row) => sum + row.utilizationPercent, 0) / rows.length)
+    : 0
+  const availableVehicles = rows.filter((row) => !row.maintenanceDue && row.status !== 'Maintenance').length
+  const blockedVehicles = rows.length - availableVehicles
+  const maintenanceCounts = maintenanceSchedules
+    .filter((schedule) => !filters.startDate && !filters.endDate ? true : isWithinDateRange(schedule.createdAt, filters.startDate, filters.endDate))
+    .reduce<Record<string, number>>((counts, schedule) => {
+      counts[schedule.status] = (counts[schedule.status] ?? 0) + 1
+      return counts
+    }, {})
+
+  return {
+    generatedAt: new Date().toISOString(),
+    startDate: filters.startDate ?? null,
+    endDate: filters.endDate ?? null,
+    kpis: [
+      {
+        key: 'fleet-size',
+        label: 'Fleet size',
+        value: String(rows.length),
+        note: 'Registered vehicles in the fleet',
+        tone: 'blue',
+      },
+      {
+        key: 'available',
+        label: 'Available',
+        value: String(availableVehicles),
+        note: 'Vehicles cleared for dispatch',
+        tone: 'mint',
+      },
+      {
+        key: 'blocked',
+        label: 'Blocked',
+        value: String(blockedVehicles),
+        note: 'Vehicles in maintenance or hold',
+        tone: 'rose',
+      },
+      {
+        key: 'avg-utilization',
+        label: 'Utilization',
+        value: formatPercent(averageUtilizationPercent),
+        note: 'Average trip utilization by vehicle',
+        tone: 'teal',
+      },
+    ],
+    averageUtilizationPercent,
+    utilizationByVehicle: rows,
+    maintenanceTrends: buildCategoryTrends(maintenanceCounts, 'maintenance'),
+  }
+}
+
+function buildDriverAnalyticsFallback(filters: AnalyticsFilters): DriverAnalytics {
+  const filteredTrips = filterTripsForAnalytics(filters)
+  const rows = drivers
+    .map((driver) => {
+      const driverTrips = filteredTrips.filter((trip) => trip.assignedDriverId === driver.id)
+      const completedTrips = driverTrips.filter((trip) => trip.status === 'COMPLETED').length
+      const activeTrips = driverTrips.filter((trip) => ['DISPATCHED', 'IN_PROGRESS'].includes(trip.status)).length
+      const productivityPercent = driverTrips.length ? roundOneDecimal((completedTrips * 100) / driverTrips.length) : 0
+
+      return {
+        driverId: driver.id,
+        name: driver.name,
+        status: driver.status,
+        licenseType: driver.licenseType,
+        assignedVehicleId: driver.assignedVehicleId ?? null,
+        hoursDrivenToday: driver.hoursDrivenToday,
+        totalTrips: driverTrips.length,
+        completedTrips,
+        productivityPercent,
+        note: activeTrips > 0 ? 'Live trip assigned' : completedTrips > 0 ? 'Completed in selected range' : 'Idle in selected range',
+      }
+    })
+    .sort((left, right) => right.productivityPercent - left.productivityPercent)
+
+  const averageProductivityPercent = rows.length
+    ? roundOneDecimal(rows.reduce((sum, row) => sum + row.productivityPercent, 0) / rows.length)
+    : 0
+  const dutyCounts = drivers.reduce<Record<string, number>>((counts, driver) => {
+    counts[driver.status] = (counts[driver.status] ?? 0) + 1
+    return counts
+  }, {})
+
+  return {
+    generatedAt: new Date().toISOString(),
+    startDate: filters.startDate ?? null,
+    endDate: filters.endDate ?? null,
+    kpis: [
+      {
+        key: 'driver-count',
+        label: 'Drivers',
+        value: String(rows.length),
+        note: 'Registered drivers in the fleet',
+        tone: 'blue',
+      },
+      {
+        key: 'on-duty',
+        label: 'On duty',
+        value: String(rows.filter((row) => row.status === 'On Duty').length),
+        note: 'Drivers ready for live work',
+        tone: 'mint',
+      },
+      {
+        key: 'avg-hours',
+        label: 'Avg hours',
+        value: `${roundOneDecimal(rows.reduce((sum, row) => sum + row.hoursDrivenToday, 0) / Math.max(rows.length, 1)).toFixed(1)} h`,
+        note: "Today's duty load",
+        tone: 'amber',
+      },
+      {
+        key: 'avg-productivity',
+        label: 'Productivity',
+        value: formatPercent(averageProductivityPercent),
+        note: 'Completed trips versus assigned trips',
+        tone: 'teal',
+      },
+    ],
+    averageProductivityPercent,
+    productivityByDriver: rows,
+    dutyTrend: buildCategoryTrends(dutyCounts, 'drivers'),
+  }
 }
 
 function isTripDelayed(trip: Trip, now = new Date()) {
@@ -1418,6 +1877,34 @@ export async function resolveAlert(id: string): Promise<Alert> {
   }
 }
 
+export function fetchNotifications(): Promise<Notification[]> {
+  return withFallback(
+    () => request<Notification[]>('/notifications'),
+    notifications.map(cloneNotification),
+  )
+}
+
+export async function markNotificationRead(id: string): Promise<Notification> {
+  try {
+    return await request<Notification>(`/notifications/${id}/read`, {
+      method: 'POST',
+    })
+  } catch (error) {
+    if (!USE_MOCK_API) {
+      throw error
+    }
+    console.warn('Falling back to mock API data:', error)
+    const notification = notifications.find((item) => item.id === id)
+    if (!notification) {
+      throw new Error('Notification not found')
+    }
+
+    notification.read = true
+    notification.readAt = notification.readAt ?? new Date().toISOString()
+    return cloneNotification(notification)
+  }
+}
+
 export function fetchMaintenanceSchedules(): Promise<MaintenanceSchedule[]> {
   return withFallback(
     () => request<MaintenanceSchedule[]>('/maintenance/schedules'),
@@ -1466,6 +1953,39 @@ export function fetchDashboardExceptions(): Promise<DashboardExceptionItem[]> {
   return withFallback(
     () => request<DashboardExceptionItem[]>('/dashboard/exceptions'),
     buildExceptionFallback(),
+  )
+}
+
+export function fetchTripAnalytics(filters: AnalyticsFilters): Promise<TripAnalytics> {
+  return withFallback(
+    () => request<TripAnalytics>(`/analytics/trips${buildAnalyticsQuery(filters)}`),
+    buildTripAnalyticsFallback(filters),
+  )
+}
+
+export function fetchVehicleAnalytics(filters: AnalyticsFilters): Promise<VehicleAnalytics> {
+  return withFallback(
+    () =>
+      request<VehicleAnalytics>(
+        `/analytics/vehicles${buildAnalyticsQuery({
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+        })}`,
+      ),
+    buildVehicleAnalyticsFallback(filters),
+  )
+}
+
+export function fetchDriverAnalytics(filters: AnalyticsFilters): Promise<DriverAnalytics> {
+  return withFallback(
+    () =>
+      request<DriverAnalytics>(
+        `/analytics/drivers${buildAnalyticsQuery({
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+        })}`,
+      ),
+    buildDriverAnalyticsFallback(filters),
   )
 }
 

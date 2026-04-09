@@ -275,6 +275,91 @@ export interface DashboardExceptionItem {
   updatedAt?: string | null
 }
 
+export interface AnalyticsTrend {
+  label: string
+  count: number
+  note: string
+}
+
+export interface TripAnalyticsRow {
+  tripId: string
+  routeId: string
+  vehicleId: string
+  driverId: string
+  status: TripStatus
+  plannedEndTime?: string | null
+  actualEndTime?: string | null
+  delayMinutes?: number | null
+  actualDistance: number
+  fuelUsed?: number | null
+  completionProcessedAt?: string | null
+}
+
+export interface TripAnalytics {
+  generatedAt: string
+  startDate: string | null
+  endDate: string | null
+  statusFilter: string
+  kpis: DashboardKpi[]
+  onTimeDeliveryRate: number
+  tripSuccessRate: number
+  averageDelayMinutes: number
+  fuelEfficiencyKmPerFuelUnit: number
+  completedTrips: number
+  cancelledTrips: number
+  delayedTrips: number
+  delayTrends: AnalyticsTrend[]
+  alertFrequencyByCategory: AnalyticsTrend[]
+  recentTrips: TripAnalyticsRow[]
+}
+
+export interface VehicleAnalyticsRow {
+  vehicleId: string
+  name: string
+  status: string
+  location: string
+  mileage: number
+  maintenanceDue: boolean
+  totalTrips: number
+  completedTrips: number
+  activeTrips: number
+  utilizationPercent: number
+  note: string
+}
+
+export interface VehicleAnalytics {
+  generatedAt: string
+  startDate: string | null
+  endDate: string | null
+  kpis: DashboardKpi[]
+  averageUtilizationPercent: number
+  utilizationByVehicle: VehicleAnalyticsRow[]
+  maintenanceTrends: AnalyticsTrend[]
+}
+
+export interface DriverAnalyticsRow {
+  driverId: string
+  name: string
+  status: string
+  licenseType: string
+  assignedVehicleId?: string | null
+  hoursDrivenToday: number
+  totalTrips: number
+  completedTrips: number
+  productivityPercent: number
+  note: string
+}
+
+export interface DriverAnalytics {
+  generatedAt: string
+  startDate: string | null
+  endDate: string | null
+  kpis: DashboardKpi[]
+  averageProductivityPercent: number
+  productivityByDriver: DriverAnalyticsRow[]
+  dutyTrend: AnalyticsTrend[]
+}
+
 export interface DashboardAnalytics {
   generatedAt: string
   kpis: DashboardKpi[]
@@ -289,6 +374,31 @@ export interface DashboardAnalytics {
   criticalAlertSummary: DashboardAlertSummary[]
   blockedVehicles: DashboardResource[]
   driversOnDutySnapshot: DashboardResource[]
+}
+
+export type NotificationCategory =
+  | 'CRITICAL_ALERT'
+  | 'TRIP_DISPATCH'
+  | 'TRIP_COMPLETION'
+  | 'MAINTENANCE_REMINDER'
+  | 'COMPLIANCE_REMINDER'
+
+export type NotificationSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+
+export interface Notification {
+  id: string
+  category: NotificationCategory
+  severity: NotificationSeverity
+  title: string
+  message: string
+  entityType: string
+  entityId: string
+  tripId?: string | null
+  vehicleId?: string | null
+  metadataJson?: string | null
+  createdAt: string
+  readAt?: string | null
+  read: boolean
 }
 
 export interface MaintenanceAlert {
