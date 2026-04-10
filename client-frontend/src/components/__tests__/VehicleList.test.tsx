@@ -14,6 +14,21 @@ jest.mock('../../services/apiService', () => ({
   deleteVehicle: (...args: unknown[]) => deleteVehicleMock(...args),
 }))
 
+jest.mock('../../context/useAuth', () => ({
+  useAuth: () => ({
+    session: {
+      token: 'test-token',
+      profile: {
+        id: 'user-admin',
+        name: 'Admin User',
+        role: 'ADMIN',
+        email: 'admin@example.com',
+        assignedRegion: 'HQ',
+      },
+    },
+  }),
+}))
+
 describe('VehicleList', () => {
   beforeEach(() => {
     fetchVehiclesMock.mockResolvedValue([

@@ -16,6 +16,21 @@ jest.mock('../../services/apiService', () => ({
   deleteMaintenanceAlert: (...args: unknown[]) => deleteMaintenanceAlertMock(...args),
 }))
 
+jest.mock('../../context/useAuth', () => ({
+  useAuth: () => ({
+    session: {
+      token: 'test-token',
+      profile: {
+        id: 'user-admin',
+        name: 'Admin User',
+        role: 'ADMIN',
+        email: 'admin@example.com',
+        assignedRegion: 'HQ',
+      },
+    },
+  }),
+}))
+
 describe('MaintenanceAlerts', () => {
   beforeEach(() => {
     fetchMaintenanceAlertsMock.mockResolvedValue([
