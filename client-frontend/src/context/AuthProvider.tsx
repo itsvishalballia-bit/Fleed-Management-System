@@ -48,7 +48,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
         setSession(nextSession)
         window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession))
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (cancelled) {
           return
         }
