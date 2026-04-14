@@ -30,12 +30,12 @@ export function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-card__copy">
-          <img src="/logo.svg" alt="Express Logistics Logo" className="login-logo" style={{ display: 'block', width: '260px' }} />
+          <img src="/logo.png" alt="Express Logistics Logo" className="login-logo" style={{ display: 'block', width: '260px' }} />
 
         </div>
         <form className="login-card__form" onSubmit={handleSubmit}>
-          <div>
-            <h2>Welcome back</h2>
+          <div style={{ textAlign: 'center' }}>
+            <h2>Welcome</h2>
             <p>Log in to monitor and manage your fleet</p>
           </div>
           <label className="input-group">

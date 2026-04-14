@@ -227,23 +227,23 @@ public class DataSeeder {
                 appUserRepository,
                 passwordEncoder,
                 "USR-1",
-                "Shreya Operations",
+                "Manager Operations",
                 AppRole.FLEET_MANAGER,
-                "shreya.ops@fleetcontrol.dev",
+                "fleet_manager@gmail.com",
                 "West and South India",
-                "manager@fleetcontrol.dev",
-                "password123"
+                "fleet_manager@gmail.com",
+                "password"
             );
             upsertUser(
                 appUserRepository,
                 passwordEncoder,
                 "USR-2",
-                "Admin Ops",
+                "Admin Operations",
                 AppRole.ADMIN,
-                "admin.ops@fleetcontrol.dev",
+                "admin@gmail.com",
                 "Global",
-                "admin@fleetcontrol.dev",
-                "password123"
+                "admin@gmail.com",
+                "password"
             );
             upsertUser(
                 appUserRepository,
@@ -251,10 +251,10 @@ public class DataSeeder {
                 "USR-3",
                 "Dispatch Planner",
                 AppRole.DISPATCHER_PLANNER,
-                "dispatch.planner@fleetcontrol.dev",
+                "dispatcher_planner@gmail.com",
                 "West Corridor",
-                "dispatcher@fleetcontrol.dev",
-                "password123"
+                "dispatcher_planner@gmail.com",
+                "password"
             );
             upsertUser(
                 appUserRepository,
@@ -262,10 +262,10 @@ public class DataSeeder {
                 "USR-4",
                 "Maintenance Lead",
                 AppRole.MAINTENANCE_MANAGER,
-                "maintenance.lead@fleetcontrol.dev",
+                "maintenance_manager@gmail.com",
                 "Workshop Bay",
-                "maintenance@fleetcontrol.dev",
-                "password123"
+                "maintenance_manager@gmail.com",
+                "password"
             );
             upsertUser(
                 appUserRepository,
@@ -273,10 +273,10 @@ public class DataSeeder {
                 "DR-201",
                 "Driver Console",
                 AppRole.DRIVER,
-                "driver.console@fleetcontrol.dev",
+                "driver@gmail.com",
                 "Field",
-                "driver@fleetcontrol.dev",
-                "password123"
+                "driver@gmail.com",
+                "password"
             );
 
             appUserRepository.findAll().forEach(user -> {
@@ -330,22 +330,24 @@ public class DataSeeder {
         String loginEmail,
         String rawPassword
     ) {
-        AppUser user = appUserRepository.findByLoginEmailIgnoreCase(loginEmail).orElse(null);
+        AppUser user = appUserRepository.findById(id).orElse(null);
+        if (user == null) {
+            user = appUserRepository.findByLoginEmailIgnoreCase(loginEmail).orElse(null);
+        }
         if (user == null) {
             user = new AppUser();
             user.setId(id);
-            user.setLoginEmail(loginEmail);
         }
 
+        user.setLoginEmail(loginEmail);
         user.setName(name);
         user.setRole(role.name());
         user.setEmail(email);
         user.setAssignedRegion(assignedRegion);
-        user.setPassword(
-            user.getPassword() != null && user.getPassword().startsWith("$2")
-                ? user.getPassword()
-                : passwordEncoder.encode(rawPassword)
-        );
+        
+        // Always reset password during dev seeding when requested to ensure clean state
+        user.setPassword(passwordEncoder.encode(rawPassword));
+        
         appUserRepository.save(user);
     }
 }

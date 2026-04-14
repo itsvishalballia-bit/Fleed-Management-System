@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { fetchNotificationCount } from '../services/apiService'
 
 const titles: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': {
@@ -71,6 +72,22 @@ export function Navbar() {
   const navigate = useNavigate()
 
   const title = useMemo(() => resolveTitle(pathname), [pathname])
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    async function loadCount() {
+      try {
+        const count = await fetchNotificationCount()
+        setUnreadCount(count)
+      } catch (error) {
+        console.error('Failed to fetch notification count', error)
+      }
+    }
+
+    void loadCount()
+    const interval = setInterval(() => void loadCount(), 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <header className="navbar">
@@ -81,17 +98,18 @@ export function Navbar() {
       </div>
 
       <div className="navbar__controls">
-        <button className="navbar__org" type="button">
-          <span className="navbar__org-label">Express Logistics</span>
-          <span className="navbar__org-chevron">v</span>
-        </button>
+
         <button
           aria-label="Notifications"
           className="navbar__notification"
           type="button"
           onClick={() => navigate('/notifications')}
         >
-          <span className="navbar__notification-badge">3</span>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          {unreadCount > 0 && <span className="navbar__notification-badge">{unreadCount}</span>}
         </button>
         <div className="navbar__profile">
           <span className="avatar">

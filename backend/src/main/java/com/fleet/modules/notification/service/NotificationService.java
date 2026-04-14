@@ -63,6 +63,13 @@ public class NotificationService {
             .toList();
     }
 
+    public long getUnreadCount() {
+        return notificationRepository.findAll().stream()
+            .filter(n -> n.getReadAt() == null)
+            .filter(this::isVisibleToCurrentUser)
+            .count();
+    }
+
     @Transactional
     public NotificationDTO markRead(String id) {
         Notification notification = notificationRepository.findById(id)

@@ -1,3 +1,14 @@
+html,
+body,
+#root,
+.app-shell__body {
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 :root {
   --color-bg: #f3f6f8;
   --color-surface: #ffffff;
@@ -1305,7 +1316,7 @@ input {
 }
 
 .login-card__copy {
-  background: linear-gradient(135deg, #10122B, #0A0B1A);
+  background: #000105;
   color: #fff;
   display: flex;
   align-items: center;
@@ -1455,6 +1466,16 @@ input {
     transform 0.18s ease;
 }
 
+@keyframes loaderFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes contentFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .loading-button__label--default {
   opacity: 1;
   transform: translateY(0);
@@ -1554,6 +1575,13 @@ input {
   }
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
 body {
   background:
     radial-gradient(circle at top left, rgba(47, 107, 255, 0.14), transparent 28%),
@@ -1561,6 +1589,7 @@ body {
     linear-gradient(180deg, #f8fbff 0%, #eef3f9 52%, #edf2f7 100%);
   color: #0f172a;
   font-family: 'Segoe UI', 'Trebuchet MS', 'Aptos', sans-serif;
+  animation: contentFadeIn 0.5s ease-out forwards;
 }
 
 .app-shell {
@@ -1572,19 +1601,28 @@ body {
 }
 
 .app-shell__body {
-  display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
-  gap: 18px;
-  padding: 18px;
+  display: flex;
+  height: 100vh;
+  gap: 0;
+  padding: 0;
   min-height: 0;
   overflow: hidden;
-  align-items: start;
+  background: #f4f7fe;
+  animation: contentFadeIn 0.5s ease-out forwards;
 }
 
 .app-shell__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding-bottom: 18px;
+  overflow: hidden;
+}
+
+.app-shell__main {
+  flex: 1;
+  padding: 24px;
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -1669,6 +1707,8 @@ body {
 
 .navbar__notification {
   position: relative;
+  display: grid;
+  place-items: center;
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -1699,28 +1739,33 @@ body {
 }
 
 .sidebar {
-  position: sticky;
-  top: 0;
-  align-self: start;
+  width: 280px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  height: 100%;
-  max-height: 100%;
-  min-height: 0;
-  padding: 18px;
-  overflow: hidden;
-  border-radius: 28px;
-  background: linear-gradient(180deg, #0b1328 0%, #0f172a 100%);
+  gap: 20px;
+  height: 100vh;
+  padding: 24px;
+  background: #000105;
   color: #edf2ff;
-  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.28);
+  border-radius: 0;
+  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.15);
+  overflow: hidden;
+
+
+}
+
+.sidebar__nav::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari and Opera */
 }
 
 .sidebar__brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 4px 2px 10px;
+  padding: 0 0 24px;
+  flex-shrink: 0;
 }
 
 .sidebar__brand-mark,
@@ -1742,32 +1787,40 @@ body {
 }
 
 .sidebar__nav {
-  display: grid;
-  flex: 1 1 auto;
-  gap: 18px;
-  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  gap: 8px;
+  min-height: 0;
+}
+
+.sidebar__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .sidebar__title {
-  margin: 0 0 10px;
-  color: rgba(226, 232, 240, 0.56);
-  font-size: 0.74rem;
-  letter-spacing: 0.18em;
+  margin: 0 0 8px 12px;
+  color: rgba(226, 232, 240, 0.5);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .sidebar__link {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 12px;
   padding: 12px 14px;
-  border-radius: 16px;
-  color: rgba(226, 232, 240, 0.82);
-  transition: background-color 0.18s ease, transform 0.18s ease;
+  border-radius: 14px;
+  color: rgba(226, 232, 240, 0.85);
+  transition: all 0.2s ease;
 }
 
 .sidebar__link:hover,
@@ -1789,11 +1842,9 @@ body {
 }
 
 .sidebar__footer {
-  flex-shrink: 0;
   margin-top: auto;
-  display: grid;
-  gap: 12px;
-  padding-top: 12px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sidebar__profile {
@@ -2856,6 +2907,7 @@ body {
     padding: 12px;
   }
 }
+
 .login-button {
   background: linear-gradient(135deg, #10122B, #0A0B1A) !important;
   color: #fff !important;

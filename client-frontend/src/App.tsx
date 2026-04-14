@@ -19,11 +19,25 @@ import { VehicleList } from './pages/VehicleList'
 import type { AppRole } from './types'
 import './App.css'
 
+function LoadingScreen() {
+  return (
+    <div className="premium-loader">
+      <div className="premium-loader__glass">
+        <div className="premium-loader__spinner"></div>
+        <div className="premium-loader__text">
+          <h3>EXPRESS LOGISTICS</h3>
+          <p>Syncing fleet data...</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ProtectedLayout() {
   const { isAuthenticated, isLoadingSession } = useAuth()
 
   if (isLoadingSession) {
-    return <div className="page-shell">Loading session...</div>
+    return <LoadingScreen />
   }
 
   if (!isAuthenticated) {
@@ -35,11 +49,11 @@ function ProtectedLayout() {
 
 function AppLayout() {
   return (
-    <div className="app-shell">
-      <Navbar />
-      <div className="app-shell__body">
-        <Sidebar />
-        <main className="app-shell__content">
+    <div className="app-shell__body">
+      <Sidebar />
+      <div className="app-shell__content">
+        <Navbar />
+        <main className="app-shell__main">
           <Outlet />
         </main>
       </div>
@@ -74,12 +88,8 @@ function RoleRoute({ allowedRoles }: { allowedRoles: AppRole[] }) {
 }
 
 function App() {
-  const { isAuthenticated, isLoadingSession, session } = useAuth()
+  const { isAuthenticated, session } = useAuth()
   const defaultPath = defaultPathForRole(session?.profile.role)
-
-  if (isLoadingSession) {
-    return <div className="page-shell">Loading session...</div>
-  }
 
   return (
     <Routes>

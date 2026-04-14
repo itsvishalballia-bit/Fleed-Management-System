@@ -82,12 +82,7 @@ function readStoredToken() {
   }
 }
 
-function clearStoredSession() {
-  if (typeof window === 'undefined') {
-    return
-  }
-  window.localStorage.removeItem(AUTH_STORAGE_KEY)
-}
+
 
 async function parseError(response: Response) {
   const fallback = `Request failed with status ${response.status}`
@@ -132,8 +127,13 @@ async function request<T>(path: string, init?: RequestInit, options: RequestOpti
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
-      clearStoredSession()
+    if (response.status === 401 && (options.auth ?? true)) {
+      // Dispatch a custom event instead of aggressively wiping storage.
+      // This allows the AuthProvider to handle the logout gracefully and prevents
+      // race conditions on refresh where one failed request wipes the active session.
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('fleet:auth:unauthorized'))
+      }
     }
     throw new Error(await parseError(response))
   }
@@ -317,6 +317,10 @@ export function resolveAlert(id: string): Promise<Alert> {
 
 export function fetchNotifications(): Promise<Notification[]> {
   return request<Notification[]>('/notifications')
+}
+
+export function fetchNotificationCount(): Promise<number> {
+  return request<number>('/notifications/unread-count')
 }
 
 export function markNotificationRead(id: string): Promise<Notification> {

@@ -48,12 +48,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
         setSession(nextSession)
         window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession))
-      } catch {
+      } catch (error: any) {
         if (cancelled) {
           return
         }
-        setSession(null)
-        window.localStorage.removeItem(AUTH_STORAGE_KEY)
+        
+        // We do NOT aggressively clear the session here on startup.
+        // If the token is truly invalid, the 'fleet:auth:unauthorized' event 
+        // will be triggered by the API service and handled by the global listener below.
+        console.warn('Initial session validation failed or was delayed:', error)
       } finally {
         if (!cancelled) {
           setIsLoadingSession(false)
@@ -63,8 +66,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     void validateStoredSession()
 
+    const handleUnauthorized = () => {
+      setSession(null)
+      window.localStorage.removeItem(AUTH_STORAGE_KEY)
+    }
+
+    window.addEventListener('fleet:auth:unauthorized', handleUnauthorized)
+
     return () => {
       cancelled = true
+      window.removeEventListener('fleet:auth:unauthorized', handleUnauthorized)
     }
   }, [])
 
@@ -74,17 +85,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const nextSession = await loginRequest(credentials)
       setSession(nextSession)
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession))
-
-      try {
-        const profile = await fetchCurrentUser()
-        const hydratedSession = { ...nextSession, profile }
-        setSession(hydratedSession)
-        window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(hydratedSession))
-      } catch (error) {
-        setSession(null)
-        window.localStorage.removeItem(AUTH_STORAGE_KEY)
-        throw error
-      }
+    } catch (error) {
+      setSession(null)
+      window.localStorage.removeItem(AUTH_STORAGE_KEY)
+      throw error
     } finally {
       setIsLoadingSession(false)
     }

@@ -27,6 +27,12 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.getNotifications());
     }
 
+    @GetMapping("/unread-count")
+    @PreAuthorize("hasAnyRole('ADMIN','FLEET_MANAGER','DISPATCHER_PLANNER','MAINTENANCE_MANAGER','DRIVER')")
+    public ResponseEntity<Long> getUnreadCount() {
+        return ResponseEntity.ok(notificationService.getUnreadCount());
+    }
+
     @PostMapping("/{id}/read")
     @PreAuthorize("hasAnyRole('ADMIN','FLEET_MANAGER','DISPATCHER_PLANNER','MAINTENANCE_MANAGER','DRIVER')")
     public ResponseEntity<NotificationDTO> markAsRead(@PathVariable String id) {

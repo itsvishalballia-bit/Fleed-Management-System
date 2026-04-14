@@ -311,38 +311,38 @@ These demo accounts are available only when seeding is enabled. They are meant f
 
 | Role | Display name | User ID | Login email | Password | Assigned region | Typical use |
 | --- | --- | --- | --- | --- | --- | --- |
-| Fleet Manager | `Shreya Operations` | `USR-1` | `manager@fleetcontrol.dev` | `password123` | `West and South India` | Full operations walkthrough |
-| Admin | `Admin Ops` | `USR-2` | `admin@fleetcontrol.dev` | `password123` | `Global` | User administration and full access |
-| Dispatcher / Planner | `Dispatch Planner` | `USR-3` | `dispatcher@fleetcontrol.dev` | `password123` | `West Corridor` | Trip and route operations |
-| Maintenance Manager | `Maintenance Lead` | `USR-4` | `maintenance@fleetcontrol.dev` | `password123` | `Workshop Bay` | Maintenance flows |
-| Driver | `Driver Console` | `DR-201` | `driver@fleetcontrol.dev` | `password123` | `Field` | Driver-only experience |
+| Fleet Manager | `Manager Operations` | `USR-1` | `fleet_manager@gmail.com` | `password` | `West and South India` | Full operations walkthrough |
+| Admin | `Admin Operations` | `USR-2` | `admin@gmail.com` | `password` | `Global` | User administration and full access |
+| Dispatcher / Planner | `Dispatch Planner` | `USR-3` | `dispatcher_planner@gmail.com` | `password` | `West Corridor` | Trip and route operations |
+| Maintenance Manager | `Maintenance Lead` | `USR-4` | `maintenance_manager@gmail.com` | `password` | `Workshop Bay` | Maintenance flows |
+| Driver | `Driver Console` | `DR-201` | `driver@gmail.com` | `password` | `Field` | Driver-only experience |
 
 ### Copy-paste credentials
 
 #### Admin
 
-- Email: `admin@fleetcontrol.dev`
-- Password: `password123`
+- Email: `admin@gmail.com`
+- Password: `password`
 
 #### Fleet Manager
 
-- Email: `manager@fleetcontrol.dev`
-- Password: `password123`
+- Email: `fleet_manager@gmail.com`
+- Password: `password`
 
 #### Dispatcher / Planner
 
-- Email: `dispatcher@fleetcontrol.dev`
-- Password: `password123`
+- Email: `dispatcher_planner@gmail.com`
+- Password: `password`
 
 #### Maintenance Manager
 
-- Email: `maintenance@fleetcontrol.dev`
-- Password: `password123`
+- Email: `maintenance_manager@gmail.com`
+- Password: `password`
 
 #### Driver
 
-- Email: `driver@fleetcontrol.dev`
-- Password: `password123`
+- Email: `driver@gmail.com`
+- Password: `password`
 
 ## Runtime URLs
 
@@ -407,8 +407,8 @@ docker compose up --build
 
 If seeding is enabled, start with:
 
-- email: `manager@fleetcontrol.dev`
-- password: `password123`
+- email: `fleet_manager@gmail.com`
+- password: `password`
 
 ## Local development without Docker
 
@@ -676,8 +676,8 @@ POST /api/auth/login
 Content-Type: application/json
 
 {
-  "email": "manager@fleetcontrol.dev",
-  "password": "password123"
+  "email": "fleet_manager@gmail.com",
+  "password": "password"
 }
 ```
 
@@ -688,9 +688,9 @@ Successful response shape:
   "token": "fleet-session-...",
   "profile": {
     "id": "USR-1",
-    "name": "Shreya Operations",
+    "name": "Manager Operations",
     "role": "FLEET_MANAGER",
-    "email": "manager@fleetcontrol.dev",
+    "email": "fleet_manager@gmail.com",
     "assignedRegion": "West and South India"
   }
 }

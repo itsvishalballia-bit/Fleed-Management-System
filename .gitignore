@@ -1,7 +1,13 @@
 .env
+.env.*
+!.env.example
 
 # Backend build artifacts
 backend/target/
+*.jar
+*.war
+*.ear
+*.class
 
 # Frontend dependencies and build artifacts
 client-frontend/node_modules/
@@ -10,6 +16,12 @@ client-frontend/.vite/
 client-frontend/coverage/
 client-frontend/node_modules/.tmp/
 client-frontend/*.tsbuildinfo
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.iws
 
 # General logs and OS files
 *.log
