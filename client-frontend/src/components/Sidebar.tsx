@@ -1,6 +1,6 @@
 import { useNavigate, NavLink } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
-import { ROLE_LABELS, hasAnyRole, normalizeRole } from '../security/permissions'
+import { hasAnyRole } from '../security/permissions'
 import type { AppRole } from '../types'
 
 const groups = [
@@ -46,7 +46,6 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const { logout, session } = useAuth()
   const navigate = useNavigate()
   const role = session?.profile.role
-  const normalizedRole = normalizeRole(role)
   const visibleGroups = groups
     .map((group) => ({
       ...group,
@@ -54,10 +53,6 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     }))
     .filter((group) => group.items.length > 0)
 
-  async function handleLogout() {
-    await logout()
-    navigate('/login')
-  }
 
   return (
     <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>

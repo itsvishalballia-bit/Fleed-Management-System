@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { MapView } from '../components/MapView'
 import { useAuth } from '../context/useAuth'
 import {
@@ -42,7 +42,9 @@ function saveChecklist(tripId: string, state: ChecklistState) {
     const all = raw ? (JSON.parse(raw) as Record<string, ChecklistState>) : {}
     all[tripId] = state
     localStorage.setItem(CHECKLIST_STORAGE_KEY, JSON.stringify(all))
-  } catch { }
+  } catch (err) {
+    console.warn('LocalStorage save failed', err)
+  }
 }
 
 function formatDateTime(value?: string | null) {
@@ -51,7 +53,6 @@ function formatDateTime(value?: string | null) {
 }
 
 export function DriverDashboard() {
-  const { session } = useAuth()
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null)
   const [telemetry, setTelemetry] = useState<TripTelemetryPoint[]>([])
   const [compliance, setCompliance] = useState<ComplianceCheckResult | null>(null)
@@ -66,7 +67,25 @@ export function DriverDashboard() {
   const [working, setWorking] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
-  async function loadData() {
+  const refreshTripData = useCallback(async (tripId: string) => {
+    try {
+      const [tel, comp, al] = await Promise.allSettled([
+        fetchTripTelemetry(tripId),
+        fetchComplianceCheck(tripId),
+        fetchAlerts()
+      ])
+      
+      setTelemetry(tel.status === 'fulfilled' ? tel.value : [])
+      setCompliance(comp.status === 'fulfilled' ? comp.value : null)
+      if (al.status === 'fulfilled') {
+        setSystemAlerts(al.value.filter(a => a.relatedTripId === tripId && a.status !== 'RESOLVED'))
+      }
+    } catch (err) {
+      console.warn('Trip refresh failed', err)
+    }
+  }, [])
+
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const allTrips = await fetchTrips()
@@ -90,27 +109,11 @@ export function DriverDashboard() {
     } finally {
       setLoading(false)
     }
-  }
-
-  async function refreshTripData(tripId: string) {
-    try {
-      const [tel, comp, al] = await Promise.allSettled([
-        fetchTripTelemetry(tripId),
-        fetchComplianceCheck(tripId),
-        fetchAlerts()
-      ])
-      
-      setTelemetry(tel.status === 'fulfilled' ? tel.value : [])
-      setCompliance(comp.status === 'fulfilled' ? comp.value : null)
-      if (al.status === 'fulfilled') {
-        setSystemAlerts(al.value.filter(a => a.relatedTripId === tripId && a.status !== 'RESOLVED'))
-      }
-    } catch { }
-  }
+  }, [refreshTripData])
 
   useEffect(() => {
     void loadData()
-  }, [])
+  }, [loadData])
 
   useEffect(() => {
     if (!message) return

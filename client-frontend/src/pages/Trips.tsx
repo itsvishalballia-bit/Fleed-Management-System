@@ -19,7 +19,6 @@ import {
 import type {
   Alert,
   CompleteTripInput,
-  CreateTripInput,
   ComplianceCheckResult,
   Trip,
   TripPriority,
@@ -143,7 +142,7 @@ export function Trips() {
     setLoading(true)
     setMessage(null)
     try {
-      const [tripData, vehicleData, driverData, routeData] = await Promise.all([
+      const [tripData] = await Promise.all([
         fetchTrips(), fetchVehicles(), fetchDrivers(), fetchRoutePlans(),
       ])
       setTrips(tripData)

@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { fetchNotificationCount } from '../services/apiService'
-import { ROLE_LABELS, normalizeRole } from '../security/permissions'
 
 const titles: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': {
@@ -93,8 +92,6 @@ function resolveTitle(pathname: string) {
 
 export function Navbar() {
   const { session, logout } = useAuth()
-  const role = session?.profile.role
-  const normalizedRole = normalizeRole(role)
   const { pathname } = useLocation()
   const navigate = useNavigate()
 
