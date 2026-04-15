@@ -35,6 +35,7 @@ import type {
   UpdateMaintenanceAlertInput,
   UpdateProfileInput,
   UpdateRoutePlanInput,
+  UpdateTripInput,
   UpdateVehicleInput,
   UserProfile,
   Vehicle,
@@ -362,7 +363,7 @@ export function fetchDashboardExceptions(): Promise<DashboardExceptionItem[]> {
   return request<DashboardExceptionItem[]>('/dashboard/exceptions')
 }
 
-export function fetchTripAnalytics(filters: AnalyticsFilters): Promise<TripAnalytics> {
+export function fetchTripAnalytics(filters: AnalyticsFilters = {}): Promise<TripAnalytics> {
   return request<TripAnalytics>(`/analytics/trips${buildAnalyticsQuery(filters)}`)
 }
 
