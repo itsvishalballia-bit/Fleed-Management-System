@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
 import { MapView } from '../components/MapView'
 import { useAuth } from '../context/useAuth'
 import { canManageTrips, canOperateTripExecution } from '../security/permissions'
 import {
   completeTrip,
-  createTrip,
   dispatchTrip,
   fetchAlerts,
   fetchDrivers,
@@ -22,29 +20,12 @@ import type {
   Alert,
   CompleteTripInput,
   CreateTripInput,
-  Driver,
   ComplianceCheckResult,
-  RoutePlan,
   Trip,
   TripPriority,
   TripTelemetryPoint,
-  Vehicle,
 } from '../types'
 
-const initialPlannerForm: CreateTripInput = {
-  routeId: '',
-  assignedVehicleId: '',
-  assignedDriverId: '',
-  source: '',
-  destination: '',
-  stops: [],
-  plannedStartTime: new Date().toISOString().slice(0, 16),
-  plannedEndTime: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString().slice(0, 16),
-  estimatedDistance: 0,
-  estimatedDuration: '0m',
-  priority: 'MEDIUM',
-  remarks: '',
-}
 
 const initialCompletionForm: CompleteTripInput = {
   actualEndTime: new Date().toISOString().slice(0, 16),
@@ -143,7 +124,6 @@ export function Trips() {
   const [telemetry, setTelemetry] = useState<TripTelemetryPoint[]>([])
   const [complianceCheck, setComplianceCheck] = useState<ComplianceCheckResult | null>(null)
   const [systemAlerts, setSystemAlerts] = useState<Alert[]>([])
-  const [plannerForm, setPlannerForm] = useState<CreateTripInput>(initialPlannerForm)
   const [completionForm, setCompletionForm] = useState<CompleteTripInput>(initialCompletionForm)
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
@@ -168,21 +148,6 @@ export function Trips() {
       ])
       setTrips(tripData)
       setSelectedTripId((current) => current ?? tripData[0]?.tripId ?? null)
-      setPlannerForm((current) => {
-        if (current.routeId) return current
-        const initialRoute = routeData[0]
-        return {
-          ...current,
-          routeId: initialRoute?.id ?? '',
-          assignedVehicleId: vehicleData[0]?.id ?? '',
-          assignedDriverId: driverData[0]?.id ?? '',
-          source: initialRoute?.stops[0] ?? current.source,
-          destination: initialRoute?.stops.at(-1) ?? current.destination,
-          stops: initialRoute?.stops ?? current.stops,
-          estimatedDistance: initialRoute?.distanceKm ?? current.estimatedDistance,
-          estimatedDuration: initialRoute?.estimatedDuration ?? current.estimatedDuration,
-        }
-      })
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to load trip board.')
     } finally {
