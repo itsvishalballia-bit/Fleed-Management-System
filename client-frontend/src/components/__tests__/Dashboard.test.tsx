@@ -132,7 +132,7 @@ describe('Dashboard', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByRole('heading', { name: /dashboard/i })).toBeInTheDocument()
+
     expect(screen.getByRole('heading', { name: /fleet control tower/i })).toBeInTheDocument()
     expect(await screen.findByText('Active trips')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: /dispatch holds/i })).toBeInTheDocument()

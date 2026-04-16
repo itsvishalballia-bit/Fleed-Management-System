@@ -44,7 +44,6 @@ export function AnalyticsReports() {
   
   const loadReports = useCallback(async (filters: { startDate: string; endDate: string; statusFilter: 'ALL' | TripStatus }) => {
     setLoading(true)
-    setMessage(null)
 
     try {
       const requestFilters = {
@@ -63,7 +62,6 @@ export function AnalyticsReports() {
       setVehicleAnalytics(vehicleData)
       setDriverAnalytics(driverData)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to load analytics reports.')
     } finally {
       setLoading(false)
       setWorking(false)

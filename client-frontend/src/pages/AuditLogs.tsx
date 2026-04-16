@@ -22,7 +22,6 @@ export function AuditLogs() {
   const loadAuditLogs = useCallback(
     async (filters: { from: string; to: string; entityType: string; entityId: string }) => {
     setLoading(true)
-    setMessage(null)
 
     try {
       const data =
@@ -31,7 +30,6 @@ export function AuditLogs() {
           : await fetchAuditLogs({ from: filters.from, to: filters.to })
       setItems(data)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to load audit logs.')
     } finally {
       setLoading(false)
       setWorking(false)

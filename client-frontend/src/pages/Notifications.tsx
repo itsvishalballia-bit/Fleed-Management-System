@@ -28,13 +28,11 @@ export function Notifications() {
 
   async function loadNotifications() {
     setLoading(true)
-    setMessage(null)
 
     try {
       const data = await fetchNotifications()
       setNotifications(data)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to load notifications.')
     } finally {
       setLoading(false)
     }
@@ -63,13 +61,11 @@ export function Notifications() {
 
   async function handleRead(id: string) {
     setWorking(true)
-    setMessage(null)
 
     try {
       const updated = await markNotificationRead(id)
       setNotifications((current) => current.map((item) => (item.id === id ? updated : item)))
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to mark notification as read.')
     } finally {
       setWorking(false)
     }

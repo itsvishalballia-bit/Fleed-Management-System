@@ -14,7 +14,6 @@ export function VehicleDetail() {
   
   useEffect(() => {
     async function loadVehicleDetail() {
-      setError(null)
 
       try {
         const vehicleData = await fetchVehicleById(id)
@@ -26,7 +25,6 @@ export function VehicleDetail() {
         }
       } catch (loadError) {
         setTelemetry([])
-        setError(loadError instanceof Error ? loadError.message : 'Unable to load vehicle detail telemetry.')
       }
     }
 

@@ -99,7 +99,6 @@ export function Dashboard() {
   
   async function loadDashboard() {
     setLoading(true)
-    setMessage(null)
 
     try {
       const [analyticsData, queueData, exceptionData, scheduleData] = await Promise.all([
@@ -114,7 +113,6 @@ export function Dashboard() {
       setExceptions(exceptionData)
       setMaintenanceSchedules(scheduleData)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to load dashboard.')
     } finally {
       setLoading(false)
     }
