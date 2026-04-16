@@ -10,15 +10,8 @@ interface MapViewProps {
 }
 
 export function MapView({ title, stops, currentTelemetry }: MapViewProps) {
-  // Simple heuristic: map the telemetry to a percentage along the line.
-  // In a real app, we'd use GIS path interpolation.
-  // For this demo, let's use a simulated progress if we have telemetry.
-  const [progress, setProgress] = (typeof window !== 'undefined') ? [
-    currentTelemetry ? (Math.min(100, (Math.random() * 20) + 40)) : 0
-  ] : [0]; 
-  
   // Actually, let's just use a smooth-ish mapping based on speed or random for the "testing data"
-  const vehicleLeft = currentTelemetry ? `${10 + (progress as number)}%` : '8%';
+  const vehicleLeft = currentTelemetry ? `${10 + Math.min(80, (currentTelemetry.speed % 60) + 20)}%` : '8%';
 
   return (
     <section className="panel map-view">

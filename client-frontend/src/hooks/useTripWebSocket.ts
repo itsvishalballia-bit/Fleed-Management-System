@@ -56,6 +56,4 @@ export function useTripWebSocket(tripId: string | undefined) {
     }
     return () => disconnect()
   }, [tripId, connect, disconnect])
-
-  return { isConnected: stompClient.current?.connected }
 }
