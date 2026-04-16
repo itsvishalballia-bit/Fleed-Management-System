@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { PageHeader } from '../components/PageHeader'
-import { VehicleCard } from '../components/VehicleCard'
 import { useAuth } from '../context/useAuth'
 import { canManageVehicles } from '../security/permissions'
 import { createVehicle, deleteVehicle, fetchVehicles, updateVehicle } from '../services/apiService'
@@ -118,7 +116,7 @@ export function VehicleList() {
   const [fuelLevelInput, setFuelLevelInput] = useState('50')
   const [mileageInput, setMileageInput] = useState('0')
   const [form, setForm] = useState<CreateVehicleInput>(initialForm)
-  const [error, setError] = useState('')
+
   const query = searchParams.get('q')?.trim().toLowerCase() ?? ''
   const canManage = canManageVehicles(session?.profile.role)
 
@@ -162,7 +160,6 @@ export function VehicleList() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError('')
 
     const parsedFuelLevel = Number(fuelLevelInput)
     if (
@@ -171,13 +168,15 @@ export function VehicleList() {
       parsedFuelLevel < 0 ||
       parsedFuelLevel > 100
     ) {
-      setError('Fuel level must be a valid percentage between 0 and 100.')
+      // setError('Fuel level must be a valid percentage between 0 and 100.')
+      console.error('Fuel level must be a valid percentage between 0 and 100.')
       return
     }
 
     const parsedMileage = Number(mileageInput)
     if (!mileageInput.trim() || Number.isNaN(parsedMileage) || parsedMileage < 0) {
-      setError('Mileage must be a valid non-negative number.')
+      // setError('Mileage must be a valid non-negative number.')
+      console.error('Mileage must be a valid non-negative number.')
       return
     }
 
@@ -202,12 +201,11 @@ export function VehicleList() {
 
       resetForm()
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Unable to save vehicle.')
+      console.error(submitError)
     }
   }
 
   async function handleDelete(vehicle: Vehicle) {
-    setError('')
     setDeletingVehicleId(vehicle.id)
 
     try {
@@ -224,7 +222,7 @@ export function VehicleList() {
         resetForm()
       }
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete vehicle.')
+      console.error(deleteError)
     } finally {
       setDeletingVehicleId((current) => (current === vehicle.id ? null : current))
     }
@@ -245,7 +243,6 @@ export function VehicleList() {
     setEditingVehicleId(vehicle.id)
     setSelectedVehicleId(vehicle.id)
     setShowForm(true)
-    setError('')
   }
 
   function resetForm() {
@@ -254,7 +251,6 @@ export function VehicleList() {
     setMileageInput(formatVehicleNumericInput(String(initialForm.mileage)))
     setEditingVehicleId(null)
     setShowForm(false)
-    setError('')
   }
 
   const kpis = [
@@ -302,7 +298,7 @@ export function VehicleList() {
           </label>
           <label>
             <span>Status</span>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as Vehicle['status'])}>
               {vehicleStatusFilters.map((f) => (
                 <option key={f.value} value={f.value}>
                   {f.label}
@@ -352,7 +348,7 @@ export function VehicleList() {
             </label>
             <label>
               <span>Status</span>
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as any })}>
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Vehicle['status'] })}>
                 <option value="Active">Active</option>
                 <option value="Idle">Rest</option>
                 <option value="Maintenance">Maintenance</option>

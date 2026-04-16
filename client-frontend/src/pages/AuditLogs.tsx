@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { PageHeader } from '../components/PageHeader'
 import { fetchAuditLogs, fetchAuditLogsByEntity } from '../services/apiService'
 import type { AuditLogEntry } from '../types'
 
@@ -15,8 +14,7 @@ export function AuditLogs() {
   const [items, setItems] = useState<AuditLogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-  const [from, setFrom] = useState(defaultFrom)
+    const [from, setFrom] = useState(defaultFrom)
   const [to, setTo] = useState(defaultTo)
   const [entityType, setEntityType] = useState('')
   const [entityId, setEntityId] = useState('')

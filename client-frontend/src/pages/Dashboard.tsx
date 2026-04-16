@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { PageHeader } from '../components/PageHeader'
 import {
   fetchDashboardActionQueue,
   fetchDashboardAnalytics,
@@ -97,8 +96,7 @@ export function Dashboard() {
   const [exceptions, setExceptions] = useState<DashboardExceptionItem[]>([])
   const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>([])
   const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState<string | null>(null)
-
+  
   async function loadDashboard() {
     setLoading(true)
     setMessage(null)

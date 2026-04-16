@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { DriverCard } from '../components/DriverCard'
-import { PageHeader } from '../components/PageHeader'
 import { useAuth } from '../context/useAuth'
 import { canAccessDrivers } from '../security/permissions'
 import { changePassword, fetchDrivers, fetchProfile, updateProfile } from '../services/apiService'

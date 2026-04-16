@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { MapView } from '../components/MapView'
-import { PageHeader } from '../components/PageHeader'
 import { TelemetryChart } from '../components/TelemetryChart'
 import { fetchVehicleById } from '../services/apiService'
 import { fetchVehicleTelemetry } from '../services/telemetryService'
@@ -12,8 +11,7 @@ export function VehicleDetail() {
   const navigate = useNavigate()
   const [vehicle, setVehicle] = useState<Vehicle | undefined>()
   const [telemetry, setTelemetry] = useState<TelemetryData[]>([])
-  const [error, setError] = useState<string | null>(null)
-
+  
   useEffect(() => {
     async function loadVehicleDetail() {
       setError(null)

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { PageHeader } from '../components/PageHeader'
 import { fetchDriverAnalytics, fetchTripAnalytics, fetchVehicleAnalytics } from '../services/apiService'
 import type { DriverAnalytics, TripAnalytics, TripStatus, VehicleAnalytics } from '../types'
 
@@ -42,8 +41,7 @@ export function AnalyticsReports() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | TripStatus>('ALL')
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-
+  
   const loadReports = useCallback(async (filters: { startDate: string; endDate: string; statusFilter: 'ALL' | TripStatus }) => {
     setLoading(true)
     setMessage(null)

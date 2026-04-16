@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { PageHeader } from '../components/PageHeader'
 import { fetchNotifications, markNotificationRead } from '../services/apiService'
 import type { Notification } from '../types'
 
@@ -25,8 +24,7 @@ export function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'READ'>('ALL')
+    const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'READ'>('ALL')
 
   async function loadNotifications() {
     setLoading(true)
