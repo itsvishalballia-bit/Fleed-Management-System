@@ -4155,7 +4155,6 @@ body {
   }
 }
 
-<<<<<<< HEAD
 /* -------------------------------------------------------------------
    ANALYTICS FILTER � Alignment Refinement
    ------------------------------------------------------------------- */
@@ -4323,7 +4322,6 @@ body {
   z-index: 10;
 }
 
-=======
 /* ── Trip Route Component ── */
 /* ── Trip Route Component Refinements ── */
 .dd-trip-route {
@@ -4556,4 +4554,3 @@ body {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
->>>>>>> 252735a (feat: real-time telemetry, WebSocket integration, and UI stabilization [Final])
