@@ -107,7 +107,6 @@ export function useDriverTracking(tripId: string | undefined, publishEnabled = t
 
   useEffect(() => {
     if (!tripId) {
-      setLatestUpdate(null)
       return
     }
 

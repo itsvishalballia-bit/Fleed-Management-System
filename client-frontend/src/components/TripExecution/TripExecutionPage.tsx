@@ -90,12 +90,25 @@ export function TripExecutionPage() {
     tripStatus,
   } = useTripExecutionStore()
   const [sheetExpanded, setSheetExpanded] = useState(false)
-  const [pauseReasonDraft, setPauseReasonDraft] = useState('')
-  const [selectedChecklistType, setSelectedChecklistType] = useState<ChecklistType>('PRE')
+  const [pauseReasonDraftState, setPauseReasonDraftState] = useState<{ tripId: string | null; value: string }>({
+    tripId: null,
+    value: '',
+  })
+  const [selectedChecklistState, setSelectedChecklistState] = useState<{ tripId: string | null; value: ChecklistType }>({
+    tripId: null,
+    value: 'POST',
+  })
   const [checklistSaveError, setChecklistSaveError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const activeStop = useMemo(() => getCurrentStop(activeTrip), [activeTrip])
   const trackingTripId = activeTrip && activeTrip.status !== 'COMPLETED' ? activeTrip.id : undefined
+  const activeTripId = activeTrip?.id ?? null
+  const pauseReasonDraft = pauseReasonDraftState.tripId === activeTripId ? pauseReasonDraftState.value : ''
+  const selectedChecklistType: ChecklistType = !activeTrip || activeTrip.status === 'DISPATCHED'
+    ? 'PRE'
+    : selectedChecklistState.tripId === activeTripId
+      ? selectedChecklistState.value
+      : 'POST'
   const { latestUpdate, connectionState, gpsWarning, networkWarning } = useDriverTracking(
     trackingTripId,
     activeTrip?.status === 'IN_PROGRESS',
@@ -117,29 +130,6 @@ export function TripExecutionPage() {
       setTrip(activeTripQuery.data)
     }
   }, [activeTripQuery.data, setTrip])
-
-  useEffect(() => {
-    if (activeTrip?.status === 'PAUSED') {
-      setPauseReasonDraft(activeTrip.pauseReason ?? '')
-      return
-    }
-
-    setPauseReasonDraft('')
-  }, [activeTrip?.id, activeTrip?.pauseReason, activeTrip?.status])
-
-  useEffect(() => {
-    if (!activeTrip) {
-      setSelectedChecklistType('PRE')
-      return
-    }
-
-    if (activeTrip.status === 'DISPATCHED') {
-      setSelectedChecklistType('PRE')
-      return
-    }
-
-    setSelectedChecklistType((current) => (current === 'POST' ? current : 'POST'))
-  }, [activeTrip])
 
   useEffect(() => {
     if (!activeTrip) {
@@ -174,13 +164,15 @@ export function TripExecutionPage() {
     void queryClient.invalidateQueries({ queryKey: ['tripExecution', 'activeTrip'] })
   }, [queryClient])
 
+  const checklists = useMemo(() => checklistQuery.data ?? [], [checklistQuery.data])
+
   const invalidateChecklists = useCallback(() => {
-    if (!activeTrip?.id) {
+    if (!activeTripId) {
       return
     }
 
-    void queryClient.invalidateQueries({ queryKey: ['tripExecution', 'checklists', activeTrip.id] })
-  }, [activeTrip?.id, queryClient])
+    void queryClient.invalidateQueries({ queryKey: ['tripExecution', 'checklists', activeTripId] })
+  }, [activeTripId, queryClient])
 
   const updateMutationState = useCallback(
     (trip: ExecutionTrip | null, pendingAction: string | null) => {
@@ -315,7 +307,6 @@ export function TripExecutionPage() {
     onSettled: invalidateChecklists,
   })
 
-  const checklists = checklistQuery.data ?? []
   const preTripChecklist = checklists.find((checklist) => checklist.type === 'PRE') ?? null
   const postTripChecklist = checklists.find((checklist) => checklist.type === 'POST') ?? null
   const preTripProgressLabel = preTripChecklist
@@ -570,7 +561,7 @@ export function TripExecutionPage() {
               selectedType={selectedChecklistType}
               savingType={checklistMutation.isPending ? checklistMutation.variables?.type ?? null : null}
               saveError={checklistSaveError}
-              onSelectType={setSelectedChecklistType}
+              onSelectType={(type) => setSelectedChecklistState({ tripId: activeTrip.id, value: type })}
               onToggleItem={handleChecklistToggle}
             />
             <StopTimeline
@@ -590,7 +581,7 @@ export function TripExecutionPage() {
               postTripChecklistComplete={postTripChecklist?.completed ?? false}
               preTripProgressLabel={preTripProgressLabel}
               postTripProgressLabel={postTripProgressLabel}
-              onPauseReasonChange={setPauseReasonDraft}
+              onPauseReasonChange={(value) => setPauseReasonDraftState({ tripId: activeTrip.id, value })}
               onComplete={() => completeMutation.mutate()}
               onPause={() => pauseMutation.mutate()}
               onResume={() => resumeMutation.mutate()}
@@ -622,7 +613,7 @@ export function TripExecutionPage() {
                 selectedType={selectedChecklistType}
                 savingType={checklistMutation.isPending ? checklistMutation.variables?.type ?? null : null}
                 saveError={checklistSaveError}
-                onSelectType={setSelectedChecklistType}
+                onSelectType={(type) => setSelectedChecklistState({ tripId: activeTrip.id, value: type })}
                 onToggleItem={handleChecklistToggle}
               />
               <StopTimeline
@@ -643,7 +634,7 @@ export function TripExecutionPage() {
               postTripChecklistComplete={postTripChecklist?.completed ?? false}
               preTripProgressLabel={preTripProgressLabel}
               postTripProgressLabel={postTripProgressLabel}
-              onPauseReasonChange={setPauseReasonDraft}
+              onPauseReasonChange={(value) => setPauseReasonDraftState({ tripId: activeTrip.id, value })}
               onComplete={() => completeMutation.mutate()}
               onPause={() => pauseMutation.mutate()}
               onResume={() => resumeMutation.mutate()}
