@@ -14,6 +14,9 @@ public class Driver {
     private String name;
     private String status;
     private String licenseType;
+    private String licenseNumber;
+    private String licenseExpiryDate;
+    private String assignedShift;
     private String assignedVehicleId;
     private double hoursDrivenToday;
 
@@ -25,6 +28,9 @@ public class Driver {
         String name,
         String status,
         String licenseType,
+        String licenseNumber,
+        String licenseExpiryDate,
+        String assignedShift,
         String assignedVehicleId,
         double hoursDrivenToday
     ) {
@@ -32,6 +38,9 @@ public class Driver {
         this.name = name;
         this.status = status;
         this.licenseType = licenseType;
+        this.licenseNumber = licenseNumber;
+        this.licenseExpiryDate = licenseExpiryDate;
+        this.assignedShift = assignedShift;
         this.assignedVehicleId = assignedVehicleId;
         this.hoursDrivenToday = hoursDrivenToday;
     }
@@ -66,6 +75,30 @@ public class Driver {
 
     public void setLicenseType(String licenseType) {
         this.licenseType = licenseType;
+    }
+
+    public String getLicenseNumber() {
+        return licenseNumber;
+    }
+
+    public void setLicenseNumber(String licenseNumber) {
+        this.licenseNumber = licenseNumber;
+    }
+
+    public String getLicenseExpiryDate() {
+        return licenseExpiryDate;
+    }
+
+    public void setLicenseExpiryDate(String licenseExpiryDate) {
+        this.licenseExpiryDate = licenseExpiryDate;
+    }
+
+    public String getAssignedShift() {
+        return assignedShift;
+    }
+
+    public void setAssignedShift(String assignedShift) {
+        this.assignedShift = assignedShift;
     }
 
     public String getAssignedVehicleId() {

@@ -962,7 +962,7 @@ export function AdminDashboard() {
                 description="Open trip planning and dispatch handoff."
                 icon={<TripGlyph />}
                 title="Create Trip"
-                onClick={() => navigate('/trips')}
+                onClick={() => navigate('/admin/trip-governance')}
               />
               <ActionCard
                 accent="#0ea5e9"
@@ -976,14 +976,14 @@ export function AdminDashboard() {
                 description="Register a new driver and assign a shift."
                 icon={<DriverGlyph />}
                 title="Add Driver"
-                onClick={() => navigate('/drivers')}
+                onClick={() => navigate('/admin/fleet-master-data?tab=drivers')}
               />
               <ActionCard
                 accent="#f59e0b"
                 description="Add a fleet unit or update vehicle status."
                 icon={<VehicleGlyph />}
                 title="Add Vehicle"
-                onClick={() => navigate('/vehicles')}
+                onClick={() => navigate('/admin/fleet-master-data?tab=vehicles')}
               />
             </div>
           </article>

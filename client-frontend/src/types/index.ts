@@ -32,6 +32,7 @@ export interface Vehicle {
   type: string
   status: VehicleStatus
   location: string
+  assignedRegion: string
   fuelLevel: number
   mileage: number
   driverId: string
@@ -42,6 +43,9 @@ export interface Driver {
   name: string
   status: 'On Duty' | 'Off Duty' | 'Resting'
   licenseType: string
+  licenseNumber: string
+  licenseExpiryDate: string
+  assignedShift: string
   assignedVehicleId?: string
   hoursDrivenToday: number
 }
@@ -637,6 +641,7 @@ export interface CreateVehicleInput {
   type: string
   status: VehicleStatus
   location: string
+  assignedRegion?: string
   fuelLevel: number
   mileage: number
   driverId: string
@@ -648,6 +653,9 @@ export interface CreateDriverInput {
   name: string
   status: Driver['status']
   licenseType: string
+  licenseNumber?: string
+  licenseExpiryDate?: string
+  assignedShift?: string
   assignedVehicleId: string
   hoursDrivenToday: number
 }
@@ -668,6 +676,7 @@ export interface AssignShiftInput {
   driverId: string
   assignedVehicleId: string
   status: Driver['status']
+  assignedShift?: string
 }
 
 export interface UpdateProfileInput {

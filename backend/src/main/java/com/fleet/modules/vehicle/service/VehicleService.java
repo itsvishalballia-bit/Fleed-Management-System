@@ -41,6 +41,7 @@ public class VehicleService {
             request.type(),
             request.status(),
             request.location(),
+            request.assignedRegion(),
             request.fuelLevel(),
             request.mileage(),
             request.driverId()
@@ -52,10 +53,11 @@ public class VehicleService {
 
         Vehicle vehicle = new Vehicle(
             nextId,
-            request.name(),
-            request.type(),
+            request.name().trim(),
+            request.type().trim(),
             VehicleOperationalStatus.fromValue(request.status()).value(),
-            request.location(),
+            request.location().trim(),
+            normalizeRegion(request.assignedRegion(), request.location()),
             request.fuelLevel(),
             request.mileage(),
             normalizedDriverId
@@ -70,6 +72,7 @@ public class VehicleService {
             request.type(),
             request.status(),
             request.location(),
+            request.assignedRegion(),
             request.fuelLevel(),
             request.mileage(),
             request.driverId()
@@ -85,6 +88,7 @@ public class VehicleService {
         vehicle.setType(request.type().trim());
         vehicle.setStatus(VehicleOperationalStatus.fromValue(request.status()).value());
         vehicle.setLocation(request.location().trim());
+        vehicle.setAssignedRegion(normalizeRegion(request.assignedRegion(), request.location()));
         vehicle.setFuelLevel(request.fuelLevel());
         vehicle.setMileage(request.mileage());
         vehicle.setDriverId(normalizedDriverId);
@@ -106,9 +110,10 @@ public class VehicleService {
             vehicle.getType(),
             vehicle.getStatus(),
             vehicle.getLocation(),
+            safe(vehicle.getAssignedRegion()),
             vehicle.getFuelLevel(),
             vehicle.getMileage(),
-            vehicle.getDriverId()
+            safe(vehicle.getDriverId())
         );
     }
 
@@ -138,6 +143,7 @@ public class VehicleService {
         String type,
         String status,
         String location,
+        String assignedRegion,
         int fuelLevel,
         int mileage,
         String driverId
@@ -148,6 +154,10 @@ public class VehicleService {
 
         if (!VehicleOperationalStatus.isSupported(status.trim())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vehicle status is invalid.");
+        }
+
+        if (!isBlank(assignedRegion) && assignedRegion.trim().length() > 120) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Assigned region is too long.");
         }
 
         if (fuelLevel < 0 || fuelLevel > 100) {
@@ -198,6 +208,22 @@ public class VehicleService {
 
     private String normalizeNullable(String value) {
         return isBlank(value) ? null : value.trim();
+    }
+
+    private String normalizeRegion(String assignedRegion, String location) {
+        if (!isBlank(assignedRegion)) {
+            return assignedRegion.trim();
+        }
+
+        if (!isBlank(location)) {
+            return location.trim();
+        }
+
+        return "Unassigned";
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 
     private boolean isBlank(String value) {

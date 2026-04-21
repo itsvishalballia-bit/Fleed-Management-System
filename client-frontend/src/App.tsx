@@ -9,7 +9,9 @@ import type { AppRole } from './types'
 import './App.css'
 
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then((module) => ({ default: module.AdminDashboard })))
+const AdminTripGovernancePage = lazy(() => import('./pages/AdminTripGovernance').then((module) => ({ default: module.AdminTripGovernancePage })))
 const AdminUsersPage = lazy(() => import('./pages/AdminUsers').then((module) => ({ default: module.AdminUsersPage })))
+const FleetMasterDataPage = lazy(() => import('./pages/FleetMasterData').then((module) => ({ default: module.FleetMasterDataPage })))
 const AnalyticsReports = lazy(() => import('./pages/AnalyticsReports').then((module) => ({ default: module.AnalyticsReports })))
 const AuditLogs = lazy(() => import('./pages/AuditLogs').then((module) => ({ default: module.AuditLogs })))
 const AlertsCenter = lazy(() => import('./pages/AlertsCenter').then((module) => ({ default: module.AlertsCenter })))
@@ -138,6 +140,12 @@ function App() {
         </Route>
         <Route path="/admin/users" element={<RoleRoute allowedRoles={['ADMIN']} />}>
           <Route index element={<RouteLoader><AdminUsersPage /></RouteLoader>} />
+        </Route>
+        <Route path="/admin/trip-governance" element={<RoleRoute allowedRoles={['ADMIN']} />}>
+          <Route index element={<RouteLoader><AdminTripGovernancePage /></RouteLoader>} />
+        </Route>
+        <Route path="/admin/fleet-master-data" element={<RoleRoute allowedRoles={['ADMIN']} />}>
+          <Route index element={<RouteLoader><FleetMasterDataPage /></RouteLoader>} />
         </Route>
         <Route path="/maintenance/dashboard" element={<RoleRoute allowedRoles={['MAINTENANCE_MANAGER']} />}>
           <Route index element={<RouteLoader><MaintenanceDashboard /></RouteLoader>} />

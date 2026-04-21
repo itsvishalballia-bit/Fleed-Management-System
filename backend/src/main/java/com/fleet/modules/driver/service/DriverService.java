@@ -9,6 +9,8 @@ import com.fleet.modules.driver.entity.DriverDutyStatus;
 import com.fleet.modules.driver.repository.DriverRepository;
 import com.fleet.modules.trip.entity.TripStatus;
 import com.fleet.modules.trip.repository.TripRepository;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,9 @@ public class DriverService {
             request.name(),
             request.status(),
             request.licenseType(),
+            request.licenseNumber(),
+            request.licenseExpiryDate(),
+            request.assignedShift(),
             request.assignedVehicleId(),
             request.hoursDrivenToday()
         );
@@ -49,6 +54,9 @@ public class DriverService {
             request.name().trim(),
             DriverDutyStatus.fromValue(request.status()).value(),
             request.licenseType().trim(),
+            normalizeNullable(request.licenseNumber()),
+            normalizeNullable(request.licenseExpiryDate()),
+            normalizeShift(request.assignedShift()),
             normalizedVehicleId,
             request.hoursDrivenToday()
         );
@@ -73,6 +81,9 @@ public class DriverService {
 
         driver.setStatus(DriverDutyStatus.fromValue(request.status()).value());
         driver.setAssignedVehicleId(normalizedVehicleId);
+        driver.setAssignedShift(
+            isBlank(request.assignedShift()) ? driver.getAssignedShift() : normalizeShift(request.assignedShift())
+        );
         return toDto(driverRepository.save(driver));
     }
 
@@ -81,6 +92,9 @@ public class DriverService {
             request.name(),
             request.status(),
             request.licenseType(),
+            request.licenseNumber(),
+            request.licenseExpiryDate(),
+            request.assignedShift(),
             request.assignedVehicleId(),
             request.hoursDrivenToday()
         );
@@ -94,6 +108,9 @@ public class DriverService {
         driver.setName(request.name().trim());
         driver.setStatus(DriverDutyStatus.fromValue(request.status()).value());
         driver.setLicenseType(request.licenseType().trim());
+        driver.setLicenseNumber(normalizeNullable(request.licenseNumber()));
+        driver.setLicenseExpiryDate(normalizeNullable(request.licenseExpiryDate()));
+        driver.setAssignedShift(normalizeShift(request.assignedShift()));
         driver.setAssignedVehicleId(normalizedVehicleId);
         driver.setHoursDrivenToday(request.hoursDrivenToday());
         return toDto(driverRepository.save(driver));
@@ -113,7 +130,10 @@ public class DriverService {
             driver.getName(),
             driver.getStatus(),
             driver.getLicenseType(),
-            driver.getAssignedVehicleId(),
+            safe(driver.getLicenseNumber()),
+            safe(driver.getLicenseExpiryDate()),
+            safe(driver.getAssignedShift()),
+            safe(driver.getAssignedVehicleId()),
             driver.getHoursDrivenToday()
         );
     }
@@ -143,6 +163,9 @@ public class DriverService {
         String name,
         String status,
         String licenseType,
+        String licenseNumber,
+        String licenseExpiryDate,
+        String assignedShift,
         String assignedVehicleId,
         double hoursDrivenToday
     ) {
@@ -158,6 +181,22 @@ public class DriverService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hours driven must be zero or greater.");
         }
 
+        if (!isBlank(licenseNumber) && licenseNumber.trim().length() > 80) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "License number is too long.");
+        }
+
+        if (!isBlank(licenseExpiryDate)) {
+            try {
+                LocalDate.parse(licenseExpiryDate.trim());
+            } catch (DateTimeParseException exception) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "License expiry date must be in YYYY-MM-DD format.");
+            }
+        }
+
+        if (!isBlank(assignedShift) && assignedShift.trim().length() > 40) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Assigned shift is too long.");
+        }
+
         if (assignedVehicleId != null && assignedVehicleId.length() > 255) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Assigned vehicle ID is too long.");
         }
@@ -165,6 +204,10 @@ public class DriverService {
 
     private String normalizeNullable(String value) {
         return isBlank(value) ? null : value.trim();
+    }
+
+    private String normalizeShift(String shift) {
+        return isBlank(shift) ? "Unassigned" : shift.trim();
     }
 
     private void enforceTripAssignmentConsistency(String driverId, String vehicleId) {
@@ -206,5 +249,9 @@ public class DriverService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 }
