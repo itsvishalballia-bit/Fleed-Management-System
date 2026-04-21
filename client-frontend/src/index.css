@@ -1,4 +1,5 @@
-@import "tailwindcss";
+/* Import Tailwind from its resolved CSS entry to avoid bare-specifier resolution issues in Vite dev mode. */
+@import "../node_modules/tailwindcss/index.css";
 
 html {
   scroll-behavior: smooth;
