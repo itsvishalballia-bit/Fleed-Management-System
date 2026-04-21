@@ -1,6 +1,7 @@
 package com.fleet.modules.profile.service;
 
 import com.fleet.modules.auth.entity.AppUser;
+import com.fleet.modules.auth.entity.AppRole;
 import com.fleet.modules.auth.repository.AppUserRepository;
 import com.fleet.modules.auth.service.AuthSessionService;
 import com.fleet.modules.auth.service.CurrentUserService;
@@ -43,17 +44,26 @@ public class ProfileService {
     }
 
     public ProfileDTO updateProfile(UpdateProfileRequest request) {
-        if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Profile update request is required.");
+        if (
+            request == null ||
+            isBlank(request.name()) ||
+            isBlank(request.email()) ||
+            isBlank(request.assignedRegion())
+        ) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name, email, and assigned region are required.");
         }
 
         AppUser user = currentUserService.getRequiredUser();
         String previousName = user.getName();
         String previousEmail = user.getEmail();
+        String previousLoginEmail = user.getLoginEmail();
         String previousRegion = user.getAssignedRegion();
-        user.setName(request.name());
-        user.setEmail(request.email());
-        user.setAssignedRegion(request.assignedRegion());
+        String nextEmail = request.email().trim();
+        ensureEmailAvailable(nextEmail, user.getId());
+        user.setName(request.name().trim());
+        user.setEmail(nextEmail);
+        user.setLoginEmail(nextEmail);
+        user.setAssignedRegion(request.assignedRegion().trim());
         AppUser saved = appUserRepository.save(user);
 
         auditLogService.record(
@@ -65,9 +75,11 @@ public class ProfileService {
             details(
                 "previousName", previousName,
                 "previousEmail", previousEmail,
+                "previousLoginEmail", previousLoginEmail,
                 "previousRegion", previousRegion,
                 "name", saved.getName(),
                 "email", saved.getEmail(),
+                "loginEmail", saved.getLoginEmail(),
                 "assignedRegion", saved.getAssignedRegion()
             )
         );
@@ -115,14 +127,24 @@ public class ProfileService {
         return new ProfileDTO(
             user.getId(),
             user.getName(),
-            user.getRole(),
+            AppRole.fromStoredValue(user.getRole()).name(),
             user.getEmail(),
-            user.getAssignedRegion()
+            user.getAssignedRegion() == null ? "" : user.getAssignedRegion()
         );
     }
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void ensureEmailAvailable(String email, String currentUserId) {
+        boolean emailTaken = currentUserId == null
+            ? appUserRepository.existsByEmailIgnoreCase(email) || appUserRepository.existsByLoginEmailIgnoreCase(email)
+            : appUserRepository.existsByEmailIgnoreCaseAndIdNot(email, currentUserId) || appUserRepository.existsByLoginEmailIgnoreCaseAndIdNot(email, currentUserId);
+
+        if (emailTaken) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email address is already in use.");
+        }
     }
 
     private Map<String, Object> details(Object... items) {

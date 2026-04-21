@@ -2,6 +2,7 @@ package com.fleet.modules.auth.service;
 
 import com.fleet.modules.auth.dto.AuthResponse;
 import com.fleet.modules.auth.dto.LoginRequest;
+import com.fleet.modules.auth.entity.AppRole;
 import com.fleet.modules.auth.entity.AppUser;
 import com.fleet.modules.auth.repository.AppUserRepository;
 import com.fleet.modules.profile.dto.ProfileDTO;
@@ -31,15 +32,27 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        if (request == null || request.email() == null || request.password() == null) {
+        if (
+            request == null ||
+            request.email() == null ||
+            request.email().trim().isEmpty() ||
+            request.password() == null ||
+            request.password().trim().isEmpty()
+        ) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email and password are required.");
         }
 
-        AppUser user = appUserRepository.findByLoginEmailIgnoreCase(request.email())
+        String email = request.email().trim();
+
+        AppUser user = appUserRepository.findByLoginEmailIgnoreCase(email)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials."));
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials.");
+        }
+
+        if (!user.isActiveAccount()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account is inactive.");
         }
 
         authSessionService.revokeSessionsForUser(user.getId());
@@ -63,9 +76,9 @@ public class AuthService {
         return new ProfileDTO(
             user.getId(),
             user.getName(),
-            user.getRole(),
+            AppRole.fromStoredValue(user.getRole()).name(),
             user.getEmail(),
-            user.getAssignedRegion()
+            user.getAssignedRegion() == null ? "" : user.getAssignedRegion()
         );
     }
 }
