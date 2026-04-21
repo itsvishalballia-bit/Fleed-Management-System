@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar'
 import { useAuth } from './context/useAuth'
 import { hasAnyRole } from './security/permissions'
 import { AdminDashboard } from './pages/AdminDashboard'
+import { AdminUsersPage } from './pages/AdminUsers'
 import { AnalyticsReports } from './pages/AnalyticsReports'
 import { AuditLogs } from './pages/AuditLogs'
 import { AlertsCenter } from './pages/AlertsCenter'
@@ -126,6 +127,9 @@ function App() {
         {/* Role-based dashboard aliases */}
         <Route path="/admin/dashboard" element={<RoleRoute allowedRoles={['ADMIN']} />}>
           <Route index element={<AdminDashboard />} />
+        </Route>
+        <Route path="/admin/users" element={<RoleRoute allowedRoles={['ADMIN']} />}>
+          <Route index element={<AdminUsersPage />} />
         </Route>
         <Route path="/maintenance/dashboard" element={<RoleRoute allowedRoles={['MAINTENANCE_MANAGER']} />}>
           <Route index element={<MaintenanceDashboard />} />
