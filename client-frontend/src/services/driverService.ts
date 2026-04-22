@@ -7,6 +7,7 @@ function normalizeDriver(driver: Driver): Driver {
     licenseNumber: driver.licenseNumber ?? '',
     licenseExpiryDate: driver.licenseExpiryDate ?? '',
     assignedShift: driver.assignedShift ?? '',
+    phone: driver.phone ?? '',
     assignedVehicleId: driver.assignedVehicleId ?? '',
   }
 }
@@ -17,6 +18,7 @@ function serializeDriverInput(input: CreateDriverInput | UpdateDriverInput) {
     licenseNumber: input.licenseNumber?.trim() || '',
     licenseExpiryDate: input.licenseExpiryDate?.trim() || '',
     assignedShift: input.assignedShift?.trim() || '',
+    phone: input.phone?.trim() || '',
     assignedVehicleId: input.assignedVehicleId.trim(),
   }
 }

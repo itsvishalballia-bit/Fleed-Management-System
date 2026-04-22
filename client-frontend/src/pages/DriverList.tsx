@@ -12,10 +12,16 @@ import {
 } from '../services/apiService'
 import type { AssignShiftInput, CreateDriverInput, Driver, Vehicle } from '../types'
 
+const DRIVER_SHIFT_OPTIONS = ['Morning', 'Evening', 'Night', 'Unassigned'] as const
+
 const initialDriverForm: CreateDriverInput = {
   name: '',
   status: 'On Duty',
   licenseType: '',
+  licenseNumber: '',
+  licenseExpiryDate: '',
+  assignedShift: 'Morning',
+  phone: '',
   assignedVehicleId: '',
   hoursDrivenToday: 0,
 }
@@ -90,6 +96,7 @@ export function DriverList() {
     driverId: '',
     assignedVehicleId: '',
     status: 'On Duty',
+    assignedShift: 'Morning',
   })
   const [driverForm, setDriverForm] = useState<CreateDriverInput>(initialDriverForm)
 
@@ -104,16 +111,34 @@ export function DriverList() {
   const vehicles = useMemo(() => (vehiclesQuery.data as Vehicle[] | undefined) ?? [], [vehiclesQuery.data])
 
   useEffect(() => {
-    if (!drivers[0] || !vehicles[0]) {
+    if (!drivers[0]) {
       return
     }
 
+    setAssignment((current) => {
+      if (current.driverId) {
+        return current
+      }
+
+      return {
+        driverId: drivers[0].id,
+        assignedVehicleId: drivers[0].assignedVehicleId ?? '',
+        status: drivers[0].status,
+        assignedShift: drivers[0].assignedShift || 'Morning',
+      }
+    })
+  }, [drivers])
+
+  function hydrateAssignment(driverId: string) {
+    const selectedDriver = drivers.find((driver) => driver.id === driverId)
+
     setAssignment((current) => ({
-      driverId: current.driverId || drivers[0].id,
-      assignedVehicleId: current.assignedVehicleId || vehicles[0].id,
-      status: current.status,
+      driverId,
+      assignedVehicleId: selectedDriver?.assignedVehicleId ?? '',
+      status: selectedDriver?.status ?? current.status,
+      assignedShift: selectedDriver?.assignedShift || current.assignedShift || 'Morning',
     }))
-  }, [drivers, vehicles])
+  }
 
   async function handleAssignShift(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -184,6 +209,10 @@ export function DriverList() {
       name: driver.name,
       status: driver.status,
       licenseType: driver.licenseType,
+      licenseNumber: driver.licenseNumber ?? '',
+      licenseExpiryDate: driver.licenseExpiryDate ?? '',
+      assignedShift: driver.assignedShift ?? 'Unassigned',
+      phone: driver.phone ?? '',
       assignedVehicleId: driver.assignedVehicleId ?? '',
       hoursDrivenToday: driver.hoursDrivenToday,
     })
@@ -262,6 +291,26 @@ export function DriverList() {
               <input onChange={(event) => setDriverForm({ ...driverForm, licenseType: event.target.value })} required type="text" value={driverForm.licenseType} />
             </label>
             <label className="input-group">
+              <span>License number</span>
+              <input onChange={(event) => setDriverForm({ ...driverForm, licenseNumber: event.target.value })} type="text" value={driverForm.licenseNumber} />
+            </label>
+            <label className="input-group">
+              <span>License expiry</span>
+              <input onChange={(event) => setDriverForm({ ...driverForm, licenseExpiryDate: event.target.value })} type="date" value={driverForm.licenseExpiryDate} />
+            </label>
+            <label className="input-group">
+              <span>Assigned shift</span>
+              <select onChange={(event) => setDriverForm({ ...driverForm, assignedShift: event.target.value })} value={driverForm.assignedShift}>
+                {DRIVER_SHIFT_OPTIONS.map((shift) => (
+                  <option key={shift} value={shift}>{shift}</option>
+                ))}
+              </select>
+            </label>
+            <label className="input-group">
+              <span>Phone</span>
+              <input onChange={(event) => setDriverForm({ ...driverForm, phone: event.target.value })} type="tel" value={driverForm.phone} />
+            </label>
+            <label className="input-group">
               <span>Assigned vehicle</span>
               <select onChange={(event) => setDriverForm({ ...driverForm, assignedVehicleId: event.target.value })} value={driverForm.assignedVehicleId}>
                 <option value="">Unassigned</option>
@@ -305,7 +354,7 @@ export function DriverList() {
           <div className="form-grid">
             <label className="input-group">
               <span>Driver</span>
-              <select onChange={(event) => setAssignment({ ...assignment, driverId: event.target.value })} value={assignment.driverId}>
+              <select onChange={(event) => hydrateAssignment(event.target.value)} value={assignment.driverId}>
                 {drivers.map((driver) => (
                   <option key={driver.id} value={driver.id}>{driver.name}</option>
                 ))}
@@ -314,6 +363,7 @@ export function DriverList() {
             <label className="input-group">
               <span>Vehicle</span>
               <select onChange={(event) => setAssignment({ ...assignment, assignedVehicleId: event.target.value })} value={assignment.assignedVehicleId}>
+                <option value="">Unassigned</option>
                 {vehicles.map((vehicle) => (
                   <option key={vehicle.id} value={vehicle.id}>{vehicle.name}</option>
                 ))}
@@ -325,6 +375,14 @@ export function DriverList() {
                 <option value="On Duty">On Duty</option>
                 <option value="Off Duty">Off Duty</option>
                 <option value="Resting">Resting</option>
+              </select>
+            </label>
+            <label className="input-group">
+              <span>Shift</span>
+              <select onChange={(event) => setAssignment({ ...assignment, assignedShift: event.target.value })} value={assignment.assignedShift ?? ''}>
+                {DRIVER_SHIFT_OPTIONS.map((shift) => (
+                  <option key={shift} value={shift}>{shift}</option>
+                ))}
               </select>
             </label>
           </div>

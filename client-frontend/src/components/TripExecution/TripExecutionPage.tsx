@@ -220,11 +220,22 @@ export function TripExecutionPage() {
     enabled: Boolean(activeTrip?.id),
   })
 
+  const withDriverDisplayName = useCallback((trip: ExecutionTrip | null) => {
+    if (!trip || !isDriver || !session?.profile.name?.trim()) {
+      return trip
+    }
+
+    return {
+      ...trip,
+      driverName: session.profile.name.trim(),
+    }
+  }, [isDriver, session?.profile.name])
+
   useEffect(() => {
     if (activeTripQuery.data) {
-      dispatch(setTrip(activeTripQuery.data))
+      dispatch(setTrip(withDriverDisplayName(activeTripQuery.data)))
     }
-  }, [activeTripQuery.data, dispatch])
+  }, [activeTripQuery.data, dispatch, withDriverDisplayName])
 
   useEffect(() => {
     if (!activeTrip || podQuery.data === undefined) {
@@ -238,11 +249,11 @@ export function TripExecutionPage() {
       return
     }
 
-    dispatch(setTrip({
+    dispatch(setTrip(withDriverDisplayName({
       ...activeTrip,
       pod: podQuery.data ?? activeTrip.pod ?? null,
-    }))
-  }, [activeTrip, dispatch, podQuery.data])
+    })))
+  }, [activeTrip, dispatch, podQuery.data, withDriverDisplayName])
 
   useEffect(() => {
     if (!activeTrip) {
@@ -340,11 +351,11 @@ export function TripExecutionPage() {
   const updateMutationState = useCallback(
     (trip: ExecutionTrip | null, pendingAction: string | null) => {
       if (trip) {
-        dispatch(setTrip(trip))
+        dispatch(setTrip(withDriverDisplayName(trip)))
       }
       dispatch(setActionInProgress(pendingAction))
     },
-    [dispatch],
+    [dispatch, withDriverDisplayName],
   )
 
   const startMutation = useMutation({
@@ -407,10 +418,10 @@ export function TripExecutionPage() {
         return
       }
 
-      dispatch(setTrip({
+      dispatch(setTrip(withDriverDisplayName({
         ...activeTrip,
         pod,
-      }))
+      })))
     },
     onError: (error) => {
       setPodError(error instanceof Error ? error.message : 'Proof of delivery submission failed')
@@ -435,10 +446,10 @@ export function TripExecutionPage() {
         return
       }
 
-      dispatch(setTrip({
+      dispatch(setTrip(withDriverDisplayName({
         ...activeTrip,
         otp,
-      }))
+      })))
       if (otp.verified) {
         setOtpModalOpen(false)
       }
@@ -463,10 +474,10 @@ export function TripExecutionPage() {
         return
       }
 
-      dispatch(setTrip({
+      dispatch(setTrip(withDriverDisplayName({
         ...activeTrip,
         otp,
-      }))
+      })))
     },
     onError: (error) => {
       setOtpError(error instanceof Error ? error.message : 'OTP resend failed')

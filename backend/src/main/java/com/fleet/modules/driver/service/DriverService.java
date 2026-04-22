@@ -1,5 +1,7 @@
 package com.fleet.modules.driver.service;
 
+import com.fleet.modules.audit.service.AuditLogService;
+import com.fleet.modules.auth.service.CurrentUserService;
 import com.fleet.modules.driver.dto.AssignShiftRequest;
 import com.fleet.modules.driver.dto.CreateDriverRequest;
 import com.fleet.modules.driver.dto.DriverDTO;
@@ -11,9 +13,12 @@ import com.fleet.modules.trip.entity.TripStatus;
 import com.fleet.modules.trip.repository.TripRepository;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -21,10 +26,19 @@ public class DriverService {
 
     private final DriverRepository driverRepository;
     private final TripRepository tripRepository;
+    private final AuditLogService auditLogService;
+    private final CurrentUserService currentUserService;
 
-    public DriverService(DriverRepository driverRepository, TripRepository tripRepository) {
+    public DriverService(
+        DriverRepository driverRepository,
+        TripRepository tripRepository,
+        AuditLogService auditLogService,
+        CurrentUserService currentUserService
+    ) {
         this.driverRepository = driverRepository;
         this.tripRepository = tripRepository;
+        this.auditLogService = auditLogService;
+        this.currentUserService = currentUserService;
     }
 
     public List<DriverDTO> getDrivers() {
@@ -33,6 +47,7 @@ public class DriverService {
             .toList();
     }
 
+    @Transactional
     public DriverDTO createDriver(CreateDriverRequest request) {
         validateDriverRequest(
             request.name(),
@@ -63,9 +78,20 @@ public class DriverService {
             request.hoursDrivenToday()
         );
 
-        return toDto(driverRepository.save(driver));
+        Driver saved = driverRepository.save(driver);
+        auditLogService.record(
+            currentUserService.getCurrentActor(),
+            "DRIVER_CREATED",
+            "DRIVER",
+            saved.getId(),
+            "Driver created.",
+            details("after", snapshot(saved))
+        );
+
+        return toDto(saved);
     }
 
+    @Transactional
     public DriverDTO assignShift(AssignShiftRequest request) {
         if (isBlank(request.driverId()) || isBlank(request.status())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Driver ID and status are required.");
@@ -77,6 +103,7 @@ public class DriverService {
 
         Driver driver = driverRepository.findById(request.driverId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found."));
+        Map<String, Object> before = snapshot(driver);
 
         String normalizedVehicleId = normalizeNullable(request.assignedVehicleId());
         enforceTripAssignmentConsistency(driver.getId(), normalizedVehicleId);
@@ -86,9 +113,23 @@ public class DriverService {
         driver.setAssignedShift(
             isBlank(request.assignedShift()) ? driver.getAssignedShift() : normalizeShift(request.assignedShift())
         );
-        return toDto(driverRepository.save(driver));
+        Driver saved = driverRepository.save(driver);
+        auditLogService.record(
+            currentUserService.getCurrentActor(),
+            "DRIVER_SHIFT_ASSIGNED",
+            "DRIVER",
+            saved.getId(),
+            "Driver shift assignment updated.",
+            details(
+                "before", before,
+                "after", snapshot(saved)
+            )
+        );
+
+        return toDto(saved);
     }
 
+    @Transactional
     public DriverDTO updateDriver(String id, UpdateDriverRequest request) {
         validateDriverRequest(
             request.name(),
@@ -104,28 +145,60 @@ public class DriverService {
 
         Driver driver = driverRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found."));
+        Map<String, Object> before = snapshot(driver);
 
-        String normalizedVehicleId = normalizeNullable(request.assignedVehicleId());
+        String normalizedVehicleId = request.assignedVehicleId() == null
+            ? driver.getAssignedVehicleId()
+            : normalizeNullable(request.assignedVehicleId());
         enforceTripAssignmentConsistency(driver.getId(), normalizedVehicleId);
 
         driver.setName(request.name().trim());
         driver.setStatus(DriverDutyStatus.fromValue(request.status()).value());
         driver.setLicenseType(request.licenseType().trim());
-        driver.setLicenseNumber(normalizeNullable(request.licenseNumber()));
-        driver.setLicenseExpiryDate(normalizeNullable(request.licenseExpiryDate()));
-        driver.setAssignedShift(normalizeShift(request.assignedShift()));
-        driver.setPhone(normalizePhone(request.phone()));
+        driver.setLicenseNumber(
+            request.licenseNumber() == null ? driver.getLicenseNumber() : normalizeNullable(request.licenseNumber())
+        );
+        driver.setLicenseExpiryDate(
+            request.licenseExpiryDate() == null ? driver.getLicenseExpiryDate() : normalizeNullable(request.licenseExpiryDate())
+        );
+        driver.setAssignedShift(
+            request.assignedShift() == null ? driver.getAssignedShift() : normalizeShift(request.assignedShift())
+        );
+        driver.setPhone(
+            request.phone() == null ? driver.getPhone() : normalizePhone(request.phone())
+        );
         driver.setAssignedVehicleId(normalizedVehicleId);
         driver.setHoursDrivenToday(request.hoursDrivenToday());
-        return toDto(driverRepository.save(driver));
+        Driver saved = driverRepository.save(driver);
+        auditLogService.record(
+            currentUserService.getCurrentActor(),
+            "DRIVER_UPDATED",
+            "DRIVER",
+            saved.getId(),
+            "Driver updated.",
+            details(
+                "before", before,
+                "after", snapshot(saved)
+            )
+        );
+
+        return toDto(saved);
     }
 
+    @Transactional
     public void deleteDriver(String id) {
-        if (!driverRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found.");
-        }
-
-        driverRepository.deleteById(id);
+        Driver driver = driverRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found."));
+        enforceTripAssignmentConsistency(id, null);
+        driverRepository.delete(driver);
+        auditLogService.record(
+            currentUserService.getCurrentActor(),
+            "DRIVER_DELETED",
+            "DRIVER",
+            driver.getId(),
+            "Driver deleted.",
+            details("before", snapshot(driver))
+        );
     }
 
     private DriverDTO toDto(Driver driver) {
@@ -272,5 +345,36 @@ public class DriverService {
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private Map<String, Object> snapshot(Driver driver) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("name", driver.getName());
+        values.put("status", driver.getStatus());
+        values.put("licenseType", driver.getLicenseType());
+        values.put("licenseNumber", driver.getLicenseNumber());
+        values.put("licenseExpiryDate", driver.getLicenseExpiryDate());
+        values.put("assignedShift", driver.getAssignedShift());
+        values.put("phone", driver.getPhone());
+        values.put("assignedVehicleId", driver.getAssignedVehicleId());
+        values.put("hoursDrivenToday", driver.getHoursDrivenToday());
+        return values;
+    }
+
+    private Map<String, Object> details(Object... items) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        if (items == null) {
+            return values;
+        }
+
+        for (int index = 0; index < items.length; index += 2) {
+            Object key = items[index];
+            Object value = index + 1 < items.length ? items[index + 1] : null;
+            if (key != null && value != null) {
+                values.put(String.valueOf(key), value);
+            }
+        }
+
+        return values;
     }
 }

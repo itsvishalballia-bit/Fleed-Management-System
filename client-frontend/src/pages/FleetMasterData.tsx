@@ -72,6 +72,7 @@ const initialDriverForm: CreateDriverInput = {
   licenseNumber: '',
   licenseExpiryDate: '',
   assignedShift: 'Morning',
+  phone: '',
   assignedVehicleId: '',
   hoursDrivenToday: 0,
 }
@@ -186,6 +187,10 @@ function validateDriverForm(form: CreateDriverInput) {
 
   if (!form.assignedShift?.trim()) {
     return 'Assigned shift is required.'
+  }
+
+  if (form.phone.trim() && !/^[0-9+()\-\s]{7,20}$/.test(form.phone.trim())) {
+    return 'Phone number format is invalid.'
   }
 
   if (!Number.isFinite(form.hoursDrivenToday) || form.hoursDrivenToday < 0) {
@@ -486,6 +491,7 @@ function DriverFormModal({
           licenseNumber: initialValue.licenseNumber,
           licenseExpiryDate: initialValue.licenseExpiryDate,
           assignedShift: initialValue.assignedShift,
+          phone: initialValue.phone ?? '',
           assignedVehicleId: initialValue.assignedVehicleId ?? '',
           hoursDrivenToday: initialValue.hoursDrivenToday,
         }
@@ -567,6 +573,14 @@ function DriverFormModal({
                 </option>
               ))}
             </select>
+          </label>
+          <label>
+            <span>Phone</span>
+            <input
+              onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+              type="tel"
+              value={form.phone}
+            />
           </label>
           <label>
             <span>Assigned vehicle</span>
