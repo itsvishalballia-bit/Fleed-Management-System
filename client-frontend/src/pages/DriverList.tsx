@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { DriverCard } from '../components/DriverCard'
 import {
@@ -77,9 +78,8 @@ function formatDriverHoursInput(value: string) {
 }
 
 export function DriverList() {
+  const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
-  const [drivers, setDrivers] = useState<Driver[]>([])
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [showShiftForm, setShowShiftForm] = useState(false)
   const [showDriverForm, setShowDriverForm] = useState(false)
   const [editingDriverId, setEditingDriverId] = useState<string | null>(null)
@@ -93,23 +93,27 @@ export function DriverList() {
   })
   const [driverForm, setDriverForm] = useState<CreateDriverInput>(initialDriverForm)
 
-  useEffect(() => {
-    async function loadDrivers() {
-      const [driverData, vehicleData] = await Promise.all([fetchDrivers(), fetchVehicles()])
-      setDrivers(driverData)
-      setVehicles(vehicleData)
+  const [driversQuery, vehiclesQuery] = useQueries({
+    queries: [
+      { queryKey: ['drivers'], queryFn: fetchDrivers },
+      { queryKey: ['vehicles'], queryFn: fetchVehicles },
+    ],
+  })
 
-      if (driverData[0] && vehicleData[0]) {
-        setAssignment({
-          driverId: driverData[0].id,
-          assignedVehicleId: vehicleData[0].id,
-          status: 'On Duty',
-        })
-      }
+  const drivers = useMemo(() => (driversQuery.data as Driver[] | undefined) ?? [], [driversQuery.data])
+  const vehicles = useMemo(() => (vehiclesQuery.data as Vehicle[] | undefined) ?? [], [vehiclesQuery.data])
+
+  useEffect(() => {
+    if (!drivers[0] || !vehicles[0]) {
+      return
     }
 
-    void loadDrivers()
-  }, [])
+    setAssignment((current) => ({
+      driverId: current.driverId || drivers[0].id,
+      assignedVehicleId: current.assignedVehicleId || vehicles[0].id,
+      status: current.status,
+    }))
+  }, [drivers, vehicles])
 
   async function handleAssignShift(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -117,7 +121,9 @@ export function DriverList() {
 
     try {
       const updatedDriver = await assignShift(assignment)
-      setDrivers((current) => current.map((driver) => (driver.id === updatedDriver.id ? updatedDriver : driver)))
+      queryClient.setQueryData<Driver[]>(['drivers'], (current = []) =>
+        current.map((driver) => (driver.id === updatedDriver.id ? updatedDriver : driver)),
+      )
       setShowShiftForm(false)
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Unable to update shift.')
@@ -142,10 +148,12 @@ export function DriverList() {
     try {
       if (editingDriverId) {
         const updated = await updateDriver(editingDriverId, nextDriverForm)
-        setDrivers((current) => current.map((driver) => (driver.id === updated.id ? updated : driver)))
+        queryClient.setQueryData<Driver[]>(['drivers'], (current = []) =>
+          current.map((driver) => (driver.id === updated.id ? updated : driver)),
+        )
       } else {
         const created = await createDriver(nextDriverForm)
-        setDrivers((current) => [...current, created])
+        queryClient.setQueryData<Driver[]>(['drivers'], (current = []) => [...current, created])
       }
 
       resetDriverForm()
@@ -160,7 +168,7 @@ export function DriverList() {
 
     try {
       await deleteDriver(driver.id)
-      setDrivers((current) => current.filter((item) => item.id !== driver.id))
+      queryClient.setQueryData<Driver[]>(['drivers'], (current = []) => current.filter((item) => item.id !== driver.id))
       if (editingDriverId === driver.id) {
         resetDriverForm()
       }

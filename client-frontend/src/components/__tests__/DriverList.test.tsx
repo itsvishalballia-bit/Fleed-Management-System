@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { DriverList } from '../../pages/DriverList'
 
@@ -19,7 +20,13 @@ jest.mock('../../services/apiService', () => ({
 }))
 
 describe('DriverList', () => {
+  let queryClient: QueryClient
+
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
     fetchDriversMock.mockResolvedValue([
       {
         id: 'DR-201',
@@ -68,12 +75,14 @@ describe('DriverList', () => {
     const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => true)
 
     render(
-      <MemoryRouter
-        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
-        initialEntries={['/drivers']}
-      >
-        <DriverList />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter
+          future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+          initialEntries={['/drivers']}
+        >
+          <DriverList />
+        </MemoryRouter>
+      </QueryClientProvider>,
     )
 
     const driverHeading = await screen.findByRole('heading', { name: /ishita mehra/i })
@@ -98,12 +107,14 @@ describe('DriverList', () => {
 
   it('formats hours driven today using the same route-style numeric behavior', async () => {
     render(
-      <MemoryRouter
-        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
-        initialEntries={['/drivers']}
-      >
-        <DriverList />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter
+          future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+          initialEntries={['/drivers']}
+        >
+          <DriverList />
+        </MemoryRouter>
+      </QueryClientProvider>,
     )
 
     fireEvent.click(await screen.findByRole('button', { name: /add driver/i }))

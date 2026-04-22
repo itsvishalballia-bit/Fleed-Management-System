@@ -16,28 +16,16 @@ import type {
   Driver,
   RoutePlan,
   Trip,
-  TripOptimizationResult,
   TripPriority,
   TripStatus,
-  TripValidationResult,
   Vehicle,
 } from '../types'
+import {
+  patchAdminTripGovernanceState,
+  resetAdminTripGovernanceState,
+} from '../store/adminModuleSlice'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
 import './AdminTripGovernance.css'
-
-type NoticeTone = 'success' | 'error'
-
-type NoticeState = {
-  tone: NoticeTone
-  text: string
-}
-
-type DispatchModalState = {
-  trip: Trip
-}
-
-type CancelModalState = {
-  trip: Trip
-}
 
 const tripQueryKey = ['admin-trip-governance', 'trips'] as const
 const routeQueryKey = ['admin-trip-governance', 'routes'] as const
@@ -551,13 +539,18 @@ function CancelModal({
 
 export function AdminTripGovernancePage() {
   const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | TripStatus>('ALL')
-  const [selectedTripId, setSelectedTripId] = useState<string | null>(null)
-  const [notice, setNotice] = useState<NoticeState | null>(null)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [dispatchModal, setDispatchModal] = useState<DispatchModalState | null>(null)
-  const [cancelModal, setCancelModal] = useState<CancelModalState | null>(null)
+  const dispatch = useAppDispatch()
+  const {
+    search,
+    statusFilter,
+    selectedTripId,
+    notice,
+    showCreateModal,
+    dispatchTripId,
+    cancelTripId,
+    validationResult,
+    optimizationResult,
+  } = useAppSelector((state) => state.adminModule.tripGovernance)
   const [createError, setCreateError] = useState('')
   const [dispatchError, setDispatchError] = useState('')
   const [cancelError, setCancelError] = useState('')
@@ -565,9 +558,11 @@ export function AdminTripGovernancePage() {
   const [isDispatching, setIsDispatching] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
   const [activeActionId, setActiveActionId] = useState<string | null>(null)
-  const [validationResult, setValidationResult] = useState<TripValidationResult | null>(null)
-  const [optimizationResult, setOptimizationResult] = useState<TripOptimizationResult | null>(null)
   const deferredSearch = useDeferredValue(search)
+
+  useEffect(() => {
+    dispatch(resetAdminTripGovernanceState())
+  }, [dispatch])
 
   const tripsQuery = useQuery({ queryKey: tripQueryKey, queryFn: fetchGovernanceTrips })
   const routesQuery = useQuery({ queryKey: routeQueryKey, queryFn: fetchRoutesList })
@@ -581,22 +576,22 @@ export function AdminTripGovernancePage() {
 
   useEffect(() => {
     if (!selectedTripId && trips[0]) {
-      setSelectedTripId(trips[0].tripId)
+      dispatch(patchAdminTripGovernanceState({ selectedTripId: trips[0].tripId }))
     }
 
     if (selectedTripId && !trips.some((trip) => trip.tripId === selectedTripId)) {
-      setSelectedTripId(trips[0]?.tripId ?? null)
+      dispatch(patchAdminTripGovernanceState({ selectedTripId: trips[0]?.tripId ?? null }))
     }
-  }, [selectedTripId, trips])
+  }, [dispatch, selectedTripId, trips])
 
   useEffect(() => {
     if (!notice) {
       return undefined
     }
 
-    const timer = window.setTimeout(() => setNotice(null), 4800)
+    const timer = window.setTimeout(() => dispatch(patchAdminTripGovernanceState({ notice: null })), 4800)
     return () => window.clearTimeout(timer)
-  }, [notice])
+  }, [dispatch, notice])
 
   const routeLookup = useMemo(() => new Map(routes.map((route) => [route.id, route])), [routes])
   const driverLookup = useMemo(() => new Map(drivers.map((driver) => [driver.id, driver])), [drivers])
@@ -639,6 +634,8 @@ export function AdminTripGovernancePage() {
     filteredTrips[0] ??
     trips[0] ??
     null
+  const dispatchTrip = trips.find((trip) => trip.tripId === dispatchTripId) ?? null
+  const cancelTrip = trips.find((trip) => trip.tripId === cancelTripId) ?? null
 
   const activeTrips = trips.filter((trip) => ['DISPATCHED', 'IN_PROGRESS', 'PAUSED'].includes(trip.status)).length
   const blockedTrips = trips.filter((trip) => trip.status === 'BLOCKED').length
@@ -683,11 +680,13 @@ export function AdminTripGovernancePage() {
     try {
       const createdTrip = await createGovernanceTrip(form)
       await refreshGovernanceData()
-      setSelectedTripId(createdTrip.tripId)
-      setValidationResult(null)
-      setOptimizationResult(null)
-      setNotice({ tone: 'success', text: `Trip ${createdTrip.tripId} created in draft state.` })
-      setShowCreateModal(false)
+      dispatch(patchAdminTripGovernanceState({
+        selectedTripId: createdTrip.tripId,
+        validationResult: null,
+        optimizationResult: null,
+        notice: { tone: 'success', text: `Trip ${createdTrip.tripId} created in draft state.` },
+        showCreateModal: false,
+      }))
     } catch (error) {
       setCreateError(error instanceof Error ? error.message : 'Unable to create trip.')
     } finally {
@@ -700,15 +699,19 @@ export function AdminTripGovernancePage() {
     try {
       const result = await validateGovernanceTrip(trip.tripId)
       await refreshGovernanceData()
-      setSelectedTripId(trip.tripId)
-      setValidationResult(result)
-      setOptimizationResult(null)
-      setNotice({
-        tone: result.valid ? 'success' : 'error',
-        text: result.valid ? `Trip ${trip.tripId} passed validation.` : `Trip ${trip.tripId} still has validation blockers.`,
-      })
+      dispatch(patchAdminTripGovernanceState({
+        selectedTripId: trip.tripId,
+        validationResult: result,
+        optimizationResult: null,
+        notice: {
+          tone: result.valid ? 'success' : 'error',
+          text: result.valid ? `Trip ${trip.tripId} passed validation.` : `Trip ${trip.tripId} still has validation blockers.`,
+        },
+      }))
     } catch (error) {
-      setNotice({ tone: 'error', text: error instanceof Error ? error.message : 'Validation failed.' })
+      dispatch(patchAdminTripGovernanceState({
+        notice: { tone: 'error', text: error instanceof Error ? error.message : 'Validation failed.' },
+      }))
     } finally {
       setActiveActionId(null)
     }
@@ -719,18 +722,22 @@ export function AdminTripGovernancePage() {
     try {
       const result = await optimizeGovernanceTrip(trip.tripId)
       await refreshGovernanceData()
-      setSelectedTripId(trip.tripId)
-      setOptimizationResult(result)
-      setNotice({ tone: 'success', text: `Trip ${trip.tripId} optimized.` })
+      dispatch(patchAdminTripGovernanceState({
+        selectedTripId: trip.tripId,
+        optimizationResult: result,
+        notice: { tone: 'success', text: `Trip ${trip.tripId} optimized.` },
+      }))
     } catch (error) {
-      setNotice({ tone: 'error', text: error instanceof Error ? error.message : 'Optimization failed.' })
+      dispatch(patchAdminTripGovernanceState({
+        notice: { tone: 'error', text: error instanceof Error ? error.message : 'Optimization failed.' },
+      }))
     } finally {
       setActiveActionId(null)
     }
   }
 
   async function handleDispatchTrip(overrideValidation: boolean) {
-    if (!dispatchModal) {
+    if (!dispatchTrip) {
       return
     }
 
@@ -738,18 +745,20 @@ export function AdminTripGovernancePage() {
     setDispatchError('')
 
     try {
-      await dispatchGovernanceTrip(dispatchModal.trip.tripId, { overrideValidation })
+      await dispatchGovernanceTrip(dispatchTrip.tripId, { overrideValidation })
       await refreshGovernanceData()
-      setSelectedTripId(dispatchModal.trip.tripId)
-      setValidationResult(null)
-      setOptimizationResult(null)
-      setNotice({
-        tone: 'success',
-        text: overrideValidation
-          ? `Trip ${dispatchModal.trip.tripId} dispatched with admin override.`
-          : `Trip ${dispatchModal.trip.tripId} dispatched successfully.`,
-      })
-      setDispatchModal(null)
+      dispatch(patchAdminTripGovernanceState({
+        selectedTripId: dispatchTrip.tripId,
+        validationResult: null,
+        optimizationResult: null,
+        notice: {
+          tone: 'success',
+          text: overrideValidation
+            ? `Trip ${dispatchTrip.tripId} dispatched with admin override.`
+            : `Trip ${dispatchTrip.tripId} dispatched successfully.`,
+        },
+        dispatchTripId: null,
+      }))
     } catch (error) {
       setDispatchError(error instanceof Error ? error.message : 'Dispatch failed.')
     } finally {
@@ -758,7 +767,7 @@ export function AdminTripGovernancePage() {
   }
 
   async function handleCancelTrip(reason: string) {
-    if (!cancelModal) {
+    if (!cancelTrip) {
       return
     }
 
@@ -766,13 +775,15 @@ export function AdminTripGovernancePage() {
     setCancelError('')
 
     try {
-      await cancelGovernanceTrip(cancelModal.trip.tripId, reason)
+      await cancelGovernanceTrip(cancelTrip.tripId, reason)
       await refreshGovernanceData()
-      setSelectedTripId(cancelModal.trip.tripId)
-      setValidationResult(null)
-      setOptimizationResult(null)
-      setNotice({ tone: 'success', text: `Trip ${cancelModal.trip.tripId} cancelled.` })
-      setCancelModal(null)
+      dispatch(patchAdminTripGovernanceState({
+        selectedTripId: cancelTrip.tripId,
+        validationResult: null,
+        optimizationResult: null,
+        notice: { tone: 'success', text: `Trip ${cancelTrip.tripId} cancelled.` },
+        cancelTripId: null,
+      }))
     } catch (error) {
       setCancelError(error instanceof Error ? error.message : 'Cancellation failed.')
     } finally {
@@ -863,14 +874,14 @@ export function AdminTripGovernancePage() {
         <div className="admin-trip-toolbar__actions">
           <input
             className="admin-trip-toolbar__search"
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => dispatch(patchAdminTripGovernanceState({ search: event.target.value }))}
             placeholder="Search by trip, route, driver, or location..."
             type="search"
             value={search}
           />
           <select
             className="admin-trip-toolbar__filter"
-            onChange={(event) => setStatusFilter(event.target.value as 'ALL' | TripStatus)}
+            onChange={(event) => dispatch(patchAdminTripGovernanceState({ statusFilter: event.target.value as 'ALL' | TripStatus }))}
             value={statusFilter}
           >
             {TRIP_STATUS_FILTERS.map((status) => (
@@ -888,7 +899,7 @@ export function AdminTripGovernancePage() {
               }
 
               setCreateError('')
-              setShowCreateModal(true)
+              dispatch(patchAdminTripGovernanceState({ showCreateModal: true }))
             }}
             title={createTripDisabledReason}
             type="button"
@@ -915,7 +926,7 @@ export function AdminTripGovernancePage() {
                 <tr
                   key={trip.tripId}
                   className={trip.tripId === selectedTrip?.tripId ? 'admin-trip-table__row--selected' : ''}
-                  onClick={() => setSelectedTripId(trip.tripId)}
+                  onClick={() => dispatch(patchAdminTripGovernanceState({ selectedTripId: trip.tripId }))}
                 >
                   <td>
                     <strong>{trip.tripId}</strong>
@@ -963,7 +974,7 @@ export function AdminTripGovernancePage() {
                         onClick={(event) => {
                           event.stopPropagation()
                           setDispatchError('')
-                          setDispatchModal({ trip })
+                          dispatch(patchAdminTripGovernanceState({ dispatchTripId: trip.tripId }))
                         }}
                         type="button"
                       >
@@ -975,7 +986,7 @@ export function AdminTripGovernancePage() {
                         onClick={(event) => {
                           event.stopPropagation()
                           setCancelError('')
-                          setCancelModal({ trip })
+                          dispatch(patchAdminTripGovernanceState({ cancelTripId: trip.tripId }))
                         }}
                         type="button"
                       >
@@ -1118,30 +1129,30 @@ export function AdminTripGovernancePage() {
           drivers={drivers}
           error={createError}
           isSubmitting={isCreating}
-          onClose={() => setShowCreateModal(false)}
+          onClose={() => dispatch(patchAdminTripGovernanceState({ showCreateModal: false }))}
           onSubmit={handleCreateTrip}
           routes={routes}
           vehicles={vehicles}
         />
       ) : null}
 
-      {dispatchModal ? (
+      {dispatchTrip ? (
         <DispatchModal
           error={dispatchError}
           isSubmitting={isDispatching}
-          onClose={() => setDispatchModal(null)}
+          onClose={() => dispatch(patchAdminTripGovernanceState({ dispatchTripId: null }))}
           onSubmit={handleDispatchTrip}
-          trip={dispatchModal.trip}
+          trip={dispatchTrip}
         />
       ) : null}
 
-      {cancelModal ? (
+      {cancelTrip ? (
         <CancelModal
           error={cancelError}
           isSubmitting={isCancelling}
-          onClose={() => setCancelModal(null)}
+          onClose={() => dispatch(patchAdminTripGovernanceState({ cancelTripId: null }))}
           onSubmit={handleCancelTrip}
-          trip={cancelModal.trip}
+          trip={cancelTrip}
         />
       ) : null}
     </div>

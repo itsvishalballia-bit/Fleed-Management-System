@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
@@ -14,8 +14,8 @@ import {
   fetchVehicleTelemetry,
   fetchVehicles,
 } from '../services/apiService'
-import { useAppDispatch } from '../store/hooks'
-import { setDashboardSnapshot } from '../store/adminDashboardSlice'
+import { resetSelectedVehicleId, setDashboardSnapshot, setSelectedVehicleId } from '../store/adminDashboardSlice'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
 import type {
   AdminDashboardActivity,
   AdminDashboardLiveVehicle,
@@ -615,7 +615,11 @@ export function AdminDashboard() {
   const { session } = useAuth()
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
+  const selectedVehicleId = useAppSelector((state) => state.adminDashboard.selectedVehicleId)
+
+  useEffect(() => {
+    dispatch(resetSelectedVehicleId())
+  }, [dispatch])
 
   const coreQuery = useQuery({
     queryKey: ['admin-dashboard', 'core'],
@@ -880,7 +884,7 @@ export function AdminDashboard() {
             </div>
             <LiveFleetMap
               isLoading={isTelemetryLoading}
-              onSelectVehicle={setSelectedVehicleId}
+              onSelectVehicle={(vehicleId) => dispatch(setSelectedVehicleId(vehicleId))}
               selectedVehicleId={resolvedSelectedVehicleId}
               vehicles={liveVehicles}
             />

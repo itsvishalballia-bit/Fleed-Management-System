@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../context/useAuth'
 import { useDriverInbox } from '../hooks/useDriverInbox'
 import { acknowledgeAlert, fetchTrips, fetchVehicles, resolveAlert } from '../services/apiService'
 import type { Alert, AlertLifecycleStatus, AlertSeverity, Trip, TripStatus, Vehicle } from '../types'
+import {
+  patchAdminAlertsState,
+  resetAdminAlertsState,
+  type AlertsPageSeverityFilter as SeverityFilter,
+  type AlertsPageStatusFilter as StatusFilter,
+} from '../store/adminModuleSlice'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
 import './AlertsCenter.css'
-
-type StatusFilter = AlertLifecycleStatus | 'ALL'
-type SeverityFilter = AlertSeverity | 'ALL'
 type EnrichedAlert = {
   alert: Alert
   trip: Trip | null
@@ -275,6 +280,10 @@ function AdminAlertsGovernance({
   setSeverityFilter,
   statusFilter,
   setStatusFilter,
+  tripFilter,
+  setTripFilter,
+  regionFilter,
+  setRegionFilter,
   workingId,
   onAction,
 }: {
@@ -291,12 +300,13 @@ function AdminAlertsGovernance({
   setSeverityFilter: (value: SeverityFilter) => void
   statusFilter: StatusFilter
   setStatusFilter: (value: StatusFilter) => void
+  tripFilter: string
+  setTripFilter: (value: string) => void
+  regionFilter: string
+  setRegionFilter: (value: string) => void
   workingId: string | null
   onAction: (id: string, action: 'acknowledge' | 'resolve') => Promise<void>
 }) {
-  const [tripFilter, setTripFilter] = useState('ALL')
-  const [regionFilter, setRegionFilter] = useState('ALL')
-
   const tripLookup = useMemo(() => new Map(trips.map((trip) => [trip.tripId, trip])), [trips])
   const vehicleLookup = useMemo(() => new Map(vehicles.map((vehicle) => [vehicle.id, vehicle])), [vehicles])
 
@@ -589,6 +599,7 @@ function AdminAlertsGovernance({
 
 export function AlertsCenter() {
   const { session } = useAuth()
+  const dispatch = useAppDispatch()
   const {
     alerts,
     loading,
@@ -599,63 +610,47 @@ export function AlertsCenter() {
     replaceAlert,
     realtimeEnabled,
   } = useDriverInbox()
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
-  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('ALL')
+  const { statusFilter, severityFilter, tripFilter, regionFilter, message } = useAppSelector((state) => state.adminModule.alerts)
   const [workingId, setWorkingId] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-  const [adminTrips, setAdminTrips] = useState<Trip[]>([])
-  const [adminVehicles, setAdminVehicles] = useState<Vehicle[]>([])
-  const [adminContextLoading, setAdminContextLoading] = useState(false)
-  const [adminContextError, setAdminContextError] = useState<string | null>(null)
   const role = session?.profile.role
   const isDriver = role === 'DRIVER'
   const isAdmin = role === 'ADMIN'
 
-  const loadAdminContext = useCallback(async () => {
-    if (!isAdmin) {
-      setAdminTrips([])
-      setAdminVehicles([])
-      setAdminContextError(null)
-      setAdminContextLoading(false)
-      return
-    }
+  useEffect(() => {
+    dispatch(resetAdminAlertsState())
+  }, [dispatch])
 
-    setAdminContextLoading(true)
-    setAdminContextError(null)
-
-    try {
-      const [tripResponse, vehicleResponse] = await Promise.all([fetchTrips(), fetchVehicles()])
-      setAdminTrips(tripResponse)
-      setAdminVehicles(
-        vehicleResponse.map((vehicle) => ({
+  const adminContextQuery = useQuery({
+    queryKey: ['alerts', 'admin-context'],
+    queryFn: async () => {
+      const [trips, vehicles] = await Promise.all([fetchTrips(), fetchVehicles()])
+      return {
+        trips,
+        vehicles: vehicles.map((vehicle) => ({
           ...vehicle,
           assignedRegion: vehicle.assignedRegion ?? '',
           driverId: vehicle.driverId ?? '',
         })),
-      )
-    } catch (contextError) {
-      setAdminContextError(
-        contextError instanceof Error
-          ? `${contextError.message} Trip and region filters are temporarily limited.`
-          : 'Trip and region filters are temporarily limited.',
-      )
-    } finally {
-      setAdminContextLoading(false)
-    }
-  }, [isAdmin])
+      }
+    },
+    enabled: isAdmin,
+  })
 
-  useEffect(() => {
-    void loadAdminContext()
-  }, [loadAdminContext])
+  const adminTrips = adminContextQuery.data?.trips ?? []
+  const adminVehicles = adminContextQuery.data?.vehicles ?? []
+  const adminContextLoading = isAdmin && adminContextQuery.isPending
+  const adminContextError = adminContextQuery.error instanceof Error
+    ? `${adminContextQuery.error.message} Trip and region filters are temporarily limited.`
+    : null
 
   useEffect(() => {
     if (!message) {
       return undefined
     }
 
-    const timer = window.setTimeout(() => setMessage(null), 3000)
+    const timer = window.setTimeout(() => dispatch(patchAdminAlertsState({ message: null })), 3000)
     return () => window.clearTimeout(timer)
-  }, [message])
+  }, [dispatch, message])
 
   const stats = {
     total: alerts.length,
@@ -667,9 +662,9 @@ export function AlertsCenter() {
   const handleRefresh = useCallback(() => {
     void refresh()
     if (isAdmin) {
-      void loadAdminContext()
+      void adminContextQuery.refetch()
     }
-  }, [isAdmin, loadAdminContext, refresh])
+  }, [adminContextQuery, isAdmin, refresh])
 
   async function handleAction(id: string, action: 'acknowledge' | 'resolve') {
     setWorkingId(id)
@@ -680,9 +675,9 @@ export function AlertsCenter() {
         : await resolveAlert(id)
 
       replaceAlert(updated)
-      setMessage(`Alert ${action === 'acknowledge' ? 'acknowledged' : 'resolved'} successfully.`)
+      dispatch(patchAdminAlertsState({ message: `Alert ${action === 'acknowledge' ? 'acknowledged' : 'resolved'} successfully.` }))
     } catch (actionError) {
-      setMessage(actionError instanceof Error ? actionError.message : 'Unable to update alert.')
+      dispatch(patchAdminAlertsState({ message: actionError instanceof Error ? actionError.message : 'Unable to update alert.' }))
     } finally {
       setWorkingId(null)
     }
@@ -730,9 +725,13 @@ export function AlertsCenter() {
           onAction={handleAction}
           refresh={handleRefresh}
           severityFilter={severityFilter}
-          setSeverityFilter={setSeverityFilter}
+          setSeverityFilter={(value) => dispatch(patchAdminAlertsState({ severityFilter: value }))}
           statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
+          setStatusFilter={(value) => dispatch(patchAdminAlertsState({ statusFilter: value }))}
+          tripFilter={tripFilter}
+          setTripFilter={(value) => dispatch(patchAdminAlertsState({ tripFilter: value }))}
+          regionFilter={regionFilter}
+          setRegionFilter={(value) => dispatch(patchAdminAlertsState({ regionFilter: value }))}
           trips={adminTrips}
           vehicles={adminVehicles}
           workingId={workingId}
@@ -767,9 +766,9 @@ export function AlertsCenter() {
             isDriver={isDriver}
             onAction={handleAction}
             severityFilter={severityFilter}
-            setSeverityFilter={setSeverityFilter}
+            setSeverityFilter={(value) => dispatch(patchAdminAlertsState({ severityFilter: value }))}
             statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
+            setStatusFilter={(value) => dispatch(patchAdminAlertsState({ statusFilter: value }))}
             workingId={workingId}
           />
         </>

@@ -1,6 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Provider } from 'react-redux'
 import { MemoryRouter } from 'react-router-dom'
 import { AlertsCenter } from '../../pages/AlertsCenter'
+import { resetAdminAlertsState } from '../../store/adminModuleSlice'
+import { store } from '../../store/store'
 
 const useAuthMock = jest.fn()
 const useDriverInboxMock = jest.fn()
@@ -66,7 +70,15 @@ const alertsFixture = [
 ] as const
 
 describe('AlertsCenter admin governance', () => {
+  let queryClient: QueryClient
+
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
+    store.dispatch(resetAdminAlertsState())
+
     useAuthMock.mockReturnValue({
       session: {
         token: 'test-token',
@@ -187,9 +199,13 @@ describe('AlertsCenter admin governance', () => {
 
   it('pins critical alerts and filters the admin queue by severity, trip, and region', async () => {
     render(
-      <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-        <AlertsCenter />
-      </MemoryRouter>,
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+            <AlertsCenter />
+          </MemoryRouter>
+        </QueryClientProvider>
+      </Provider>,
     )
 
     expect(await screen.findByRole('heading', { name: /admin alert governance/i })).toBeInTheDocument()
@@ -223,9 +239,13 @@ describe('AlertsCenter admin governance', () => {
     })
 
     render(
-      <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-        <AlertsCenter />
-      </MemoryRouter>,
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+            <AlertsCenter />
+          </MemoryRouter>
+        </QueryClientProvider>
+      </Provider>,
     )
 
     const queueSection = await screen.findByRole('heading', { name: /alert queue/i })
